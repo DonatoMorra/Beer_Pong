@@ -6,6 +6,8 @@ let activeMatchId = null;
 
 let isReadonly = false;
 let isLoggedIn = false;
+window.authHeader = localStorage.getItem('beerpong_auth');
+if (window.authHeader) isLoggedIn = true;
 
 window.onload = () => {
     const params = new URLSearchParams(window.location.search);
@@ -833,6 +835,7 @@ async function attemptLogin() {
         if (response.ok) {
             isLoggedIn = true;
             window.authHeader = authHeader; 
+            localStorage.setItem('beerpong_auth', authHeader);
             showNotify("🔓 Benvenuto", "Accesso admin effettuato!", "success");
             updateAdminView();
         } else {
@@ -846,6 +849,7 @@ async function attemptLogin() {
 function logout() {
     isLoggedIn = false;
     window.authHeader = null;
+    localStorage.removeItem('beerpong_auth');
     showNotify("🔒 Logout", "Uscito dall'area admin.", "info");
     switchTab('classifica');
     updateAdminView();

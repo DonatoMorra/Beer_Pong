@@ -11,6 +11,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.http.HttpStatus;
 
 @Configuration
 @EnableWebSecurity
@@ -22,24 +24,24 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // Disabilitato per semplicita' in questo progetto locale
                 .authorizeHttpRequests(auth -> auth
                         // Permetti a TUTTI di vedere la pagina principale e i dati (Classifica)
-                        .requestMatchers("/", "/index.html", "/script.js", "/style.css", "/favicon.ico").permitAll()
+                        .requestMatchers("/", "/index.html", "/script.js", "/style.css", "/favicon.ico", "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/squadre/auth/check").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/squadre/**").permitAll()
                         // Proteggi TUTTE le operazioni di modifica (POST, DELETE, PUT)
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults())
-                .formLogin(Customizer.withDefaults());
+                .httpBasic(basic -> basic.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
 
         return http.build();
     }
 
-    @org.springframework.beans.factory.annotation.Value("${ADMIN_PASSWORD:roccadaspideBeer}")
+    @org.springframework.beans.factory.annotation.Value("${ADMIN_PASSWORD:admin}")
     private String adminPassword;
 
     @Bean
     public UserDetailsService userDetailsService() {
-        UserDetails admin = User.withDefaultPasswordEncoder()
+        UserDetails admin = User.builder()
                 .username("admin")
-                .password(adminPassword)
+                .password("{noop}" + adminPassword)
                 .roles("ADMIN")
                 .build();
         return new InMemoryUserDetailsManager(admin);

@@ -18,7 +18,7 @@ if "%HOST_IP%"=="" (
 
 :: CREA IL FILE .ENV (Questo e' il modo piu' sicuro per Docker)
 echo HOST_IP=%HOST_IP% > .env
-echo ADMIN_PASSWORD=roccadaspideBeer >> .env
+echo ADMIN_PASSWORD=admin >> .env
 echo [OK] Configurazione sicura salvata in .env
 
 echo.
@@ -38,6 +38,6 @@ echo  LINK PUBBLICO (4G): https://beerpong-torneo-premium-2024.loca.lt
 echo.
 echo  CREDENZIALI ADMIN:
 echo  User: admin
-echo  Pass: roccadaspideBeer
+echo  Pass: admin
 echo ===================================================
 pause
