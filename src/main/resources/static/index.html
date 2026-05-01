@@ -25,17 +25,35 @@
                 TORNEO</button>
         </header>
 
-        <ul class="nav nav-pills justify-content-center mb-5" id="mainTabs">
-            <li class="nav-item">
-                <button class="nav-link active" onclick="switchTab('squadre')">⚔️ Squadre</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="switchTab('classifica')">🏆 Classifica</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="switchTab('partite')">🍺 Partite</button>
-            </li>
-        </ul>
+        <nav class="navbar navbar-expand-lg navbar-light bg-white rounded-5 shadow-sm mb-5 px-4 py-3 border">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold fs-4" href="#">🍺 Menu</a>
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+                    <ul class="navbar-nav gap-3">
+                        <li class="nav-item">
+                            <button class="nav-link active fw-bold btn btn-light rounded-pill px-4"
+                                onclick="switchTab('squadre')">⚔️ Squadre</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold btn btn-light rounded-pill px-4"
+                                onclick="switchTab('classifica')">🏆 Classifica</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold btn btn-light rounded-pill px-4"
+                                onclick="switchTab('live')">⚔️ In Campo</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold btn btn-light rounded-pill px-4"
+                                onclick="switchTab('partite')">🍺 Partite</button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
 
         <div class="main-card shadow-sm p-4 p-md-5 bg-white rounded-5">
             <div id="tab-squadre" class="tab-content active">
@@ -61,7 +79,7 @@
                                 </div>
                                 <div class="col-md-4 text-md-end pt-3 pt-md-4" id="initial-gen-container">
                                     <button class="btn btn-success fw-bold w-100" onclick="generateRandomMatches()">🎲
-                                        GENERA ROUND 1</button>
+                                        AVVIA TORNEO</button>
                                 </div>
                             </div>
                         </div>
@@ -110,8 +128,19 @@
             </div>
 
             <div id="tab-classifica" class="tab-content" style="display:none;">
-                <h2 class="h4 fw-bold mb-4 text-center">Classifica Generale</h2>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="h4 fw-bold m-0">🏆 Classifica</h2>
+                    <button class="btn btn-outline-dark fw-bold rounded-pill px-3" onclick="showQRCodeModal()">📱 Codice
+                        QR</button>
+                </div>
                 <div id="leaderboard-list"></div>
+            </div>
+
+            <div id="tab-live" class="tab-content" style="display:none;">
+                <h2 class="h4 fw-bold mb-4 text-center text-primary">⚔️ PARTITE IN CORSO ⚔️</h2>
+                <div id="live-matches-list" class="row g-3">
+                    <!-- Qui verranno mostrate le partite da giocare -->
+                </div>
             </div>
 
             <div id="tab-partite" class="tab-content" style="display:none;">
@@ -237,6 +266,18 @@
             <h4 id="notificationTitle" class="fw-bold mb-2"></h4>
             <p id="notificationMessage" class="text-muted"></p>
             <button class="btn btn-dark w-100 fw-bold mt-3" onclick="closeModal('notificationModal')">OK</button>
+        </div>
+    </div>
+
+    <div id="qrModal" class="custom-modal" style="display:none;">
+        <div class="modal-dialog-custom p-4 text-center">
+            <h4 class="fw-bold mb-3">📱 Live Classifica</h4>
+            <p class="text-muted small">Inquadra questo codice per far vedere la classifica aggiornata in tempo reale in
+                sola lettura.</p>
+            <div class="bg-white p-3 d-inline-block rounded-3 shadow-sm mb-4">
+                <img id="qrImage" src="" alt="QR Code" style="width: 200px; height: 200px;">
+            </div>
+            <button class="btn btn-dark w-100 fw-bold" onclick="closeModal('qrModal')">CHIUDI</button>
         </div>
     </div>
 

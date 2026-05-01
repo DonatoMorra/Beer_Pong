@@ -25,3 +25,4 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/BeerPong?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ""
+      HOST_IP: ${HOST_IP:-localhost}

@@ -25,6 +25,15 @@ public class SquadreController {
     @Autowired
     private SquadreService squadreService;
 
+    @GetMapping("/ip")
+    public String getServerIp() {
+        String hostIp = System.getenv("HOST_IP");
+        if (hostIp != null && !hostIp.isEmpty()) {
+            return hostIp;
+        }
+        return "localhost";
+    }
+
     @GetMapping
     public List<Squadra> getAll() {
         return squadreService.findAll();

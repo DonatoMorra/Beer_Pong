@@ -4,16 +4,40 @@ let allPartite = [];
 let activeTeamId = null;
 let activeMatchId = null;
 
-window.onload = loadTeams;
+let isReadonly = false;
+
+window.onload = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'readonly') {
+        isReadonly = true;
+        
+        // Nascondi TUTTO tranne la classifica
+        const header = document.querySelector('header');
+        if (header) header.style.display = 'none';
+        
+        const nav = document.querySelector('nav');
+        if (nav) nav.style.display = 'none';
+
+        // Aggiungi un titolo pulito per gli ospiti
+        document.body.insertAdjacentHTML('afterbegin', `
+            <div class="readonly-header text-center py-4 mb-4 bg-white shadow-sm border-bottom">
+                <h1 class="h3 fw-bold mb-1">🍺 BEERPONG <span class="text-warning">LIVE</span></h1>
+                <p class="text-muted small mb-0">Classifica del Torneo</p>
+            </div>
+        `);
+        
+        switchTab('classifica');
+        setInterval(loadTeams, 5000);
+    }
+    loadTeams();
+};
 
 async function loadTeams() {
     try {
         const response = await fetch(API_URL);
         teams = await response.json();
         renderTeams();
-        if (document.getElementById('tab-classifica').style.display === 'block') {
-            renderLeaderboard();
-        }
+        renderLeaderboard();
     } catch (error) {
         console.error("Errore nel caricamento:", error);
     }
@@ -150,29 +174,45 @@ function renderTeams() {
 
     teams.forEach(t => {
         const div = document.createElement('div');
-        div.className = 'team-card d-flex justify-content-between align-items-center shadow-sm p-3 mb-3 bg-white rounded-4 border';
+        div.className = 'team-card position-relative overflow-hidden shadow-sm mb-3 bg-white';
         div.innerHTML = `
-            <div>
-                <div class="fw-bold text-dark">${t.nome}</div>
-                <div class="d-flex align-items-center gap-2">
-                    ${t.sconfitte >= 2 ? 
-                        '<span class="badge bg-danger rounded-pill" style="font-size: 0.7rem;">ELIMINATA</span>' : 
-                        `<span class="badge ${t.giocatori.length === 2 ? 'bg-success' : 'bg-secondary'} rounded-pill" style="font-size: 0.7rem;">
-                            ${t.giocatori.length === 2 ? 'COMPLETA' : 'INCOMPLETA'}
-                        </span>`
-                    }
-                    <span class="small text-muted">${t.giocatori.length}/2 Giocatori</span>
+            <div class="p-3 w-100">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h5 class="fw-bold mb-1 text-dark" style="letter-spacing: -0.5px;">${t.nome}</h5>
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            ${t.sconfitte >= 2 ? 
+                                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill" style="font-size: 0.65rem; padding: 0.35em 0.65em;">💀 ELIMINATA</span>' : 
+                                `<span class="badge ${t.giocatori.length === 2 ? 'bg-success bg-opacity-10 text-success border border-success' : 'bg-warning bg-opacity-10 text-warning border border-warning'} rounded-pill" style="font-size: 0.65rem; padding: 0.35em 0.65em;">
+                                    ${t.giocatori.length === 2 ? '✓ COMPLETA' : '⚠️ INCOMPLETA'}
+                                </span>`
+                            }
+                            <span class="text-muted" style="font-size: 0.75rem; font-weight: 600;">👤 ${t.giocatori.length}/2</span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-light shadow-sm d-flex align-items-center justify-content-center border-0" style="width: 32px; height: 32px; border-radius: 10px;" onclick="openPlayerModal(${t.id})" title="Gestisci Giocatori">👥</button>
+                        <button class="btn btn-sm shadow-sm d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-radius: 10px; background: #ffe5e5; color: #dc3545; border: none;" onclick="openDeleteSingleModal(${t.id})" title="Elimina Squadra">✕</button>
+                    </div>
                 </div>
-                <div class="small mt-1">
-                    <span class="text-success">V: ${t.vittorie}</span> | 
-                    <span class="text-danger">S: ${t.sconfitte}</span> |
-                    <span class="text-primary">Cups: ${t.bicchieriFatti}</span>
+                
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top" style="border-color: rgba(0,0,0,0.05) !important;">
+                    <div class="d-flex gap-3 text-center">
+                        <div>
+                            <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; font-weight: 800;">Vinte</div>
+                            <div class="fw-bold text-success" style="font-size: 1.1rem; line-height: 1;">${t.vittorie}</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; font-weight: 800;">Perse</div>
+                            <div class="fw-bold text-danger" style="font-size: 1.1rem; line-height: 1;">${t.sconfitte}</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; font-weight: 800;">Cups</div>
+                            <div class="fw-bold text-primary" style="font-size: 1.1rem; line-height: 1;">${t.bicchieriFatti}</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-warning rounded-pill fw-bold shadow-sm px-3" style="font-size: 0.85rem;" onclick="openPointsModal(${t.id})">${t.punti} PT</button>
                 </div>
-            </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-light border" onclick="openPlayerModal(${t.id})">👤</button>
-                <button class="btn btn-sm btn-warning fw-bold" onclick="openPointsModal(${t.id})">${t.punti} pt</button>
-                <button class="btn btn-sm btn-outline-danger border-0" onclick="openDeleteSingleModal(${t.id})">✕</button>
             </div>
         `;
         if (lists[t.girone]) {
@@ -259,7 +299,7 @@ async function generateRandomMatches() {
         }
     }
     await loadPartite();
-    switchTab('partite');
+    switchTab('live');
 }
 
 async function createBalancedMatches(squadre, gironeNum) {
@@ -335,7 +375,9 @@ function checkForTournamentEnd() {
             ? (lastMatch.bicchieriSquadra1 > lastMatch.bicchieriSquadra2 ? lastMatch.squadra1 : lastMatch.squadra2)
             : activeTeams[0];
         
-        document.getElementById('mainTabs').style.display = 'none';
+        const navTabs = document.getElementById('navbarNav');
+        if (navTabs) navTabs.style.display = 'none';
+        
         switchTab('classifica');
         window.scrollTo({ top: 0, behavior: 'smooth' });
         
@@ -355,7 +397,8 @@ function checkForTournamentEnd() {
         }
         renderLeaderboard();
     } else {
-        document.getElementById('mainTabs').style.display = 'flex';
+        const navTabs = document.getElementById('navbarNav');
+        if (navTabs) navTabs.style.display = 'block';
         const banner = document.getElementById('winner-banner');
         if (banner) banner.remove();
     }
@@ -422,13 +465,26 @@ function renderLeaderboard() {
 
 // ─── UTILS ──────────────────────────────────────────────────
 
-function switchTab(tab) {
+function switchTab(tab, e = null) {
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     document.getElementById(`tab-${tab}`).style.display = 'block';
-    if (event) event.currentTarget.classList.add('active');
+    
+    const currentEvent = e || window.event;
+    if (currentEvent && currentEvent.currentTarget && currentEvent.currentTarget.classList) {
+        currentEvent.currentTarget.classList.add('active');
+    }
     
     if (tab === 'classifica') renderLeaderboard();
+    if (tab === 'live') {
+        // Carica sempre le partite aggiornate quando si entra in "In Campo"
+        fetch(`${API_URL}/partite`)
+            .then(res => res.json())
+            .then(data => {
+                allPartite = data;
+                renderLiveMatches();
+            });
+    }
     if (tab === 'partite') {
         loadPartite();
         populateTeamSelects();
@@ -602,4 +658,59 @@ function renderPlayersList() {
             <span class="fw-semibold">${p.nome}</span>
             <button class="btn btn-sm text-danger" onclick="removePlayer(${i})">🗑️</button>
         </div>`).join('') || '<div class="p-3 text-center text-muted">Senza giocatori</div>';
+}
+
+async function showQRCodeModal() {
+    let host = window.location.host;
+    let usingAutoIP = false;
+
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        try {
+            const response = await fetch('/api/squadre/ip');
+            const ip = await response.text();
+            if (ip && ip.trim() !== 'localhost' && ip.trim() !== '') {
+                host = ip.trim() + ":8081";
+                usingAutoIP = true;
+            } else {
+                const manualIp = prompt("⚠️ CONFIGURAZIONE NECESSARIA ⚠️\nInserisci l'IP del tuo PC (es. 192.168.1.15) per far funzionare il QR Code sul telefono:");
+                if (manualIp && manualIp.trim() !== "") {
+                    host = manualIp.trim() + ":8081";
+                }
+            }
+        } catch(e) {
+            console.error("Errore recupero IP:", e);
+        }
+    }
+
+    // Costruisci URL pulito
+    const currentUrl = "http://" + host + "/?view=readonly";
+    
+    showNotify("Generazione QR", `Indirizzo: ${host}`, "info");
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(currentUrl);
+    document.getElementById('qrImage').src = qrUrl;
+    document.getElementById('qrModal').style.display = 'flex';
+}
+
+function renderLiveMatches() {
+    const container = document.getElementById('live-matches-list');
+    const upcoming = allPartite.filter(p => !p.giocata);
+    
+    container.innerHTML = upcoming.map(p => `
+        <div class="col-md-6 mb-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-center flex-grow-1">
+                        <div class="fw-bold text-dark" style="font-size: 1.1rem;">${p.squadra1.nome}</div>
+                    </div>
+                    <div class="px-3">
+                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning rounded-pill px-3">VS</span>
+                    </div>
+                    <div class="text-center flex-grow-1">
+                        <div class="fw-bold text-dark" style="font-size: 1.1rem;">${p.squadra2.nome}</div>
+                    </div>
+                </div>
+                <div class="text-center mt-3 pt-2 border-top small text-muted font-monospace" style="letter-spacing: 1px;">GIRONE ${p.girone}</div>
+            </div>
+        </div>
+    `).join('') || '<div class="text-center py-5 text-muted opacity-50"><h3>☕</h3>Nessuna partita in attesa.<br>Genera i match per iniziare!</div>';
 }
