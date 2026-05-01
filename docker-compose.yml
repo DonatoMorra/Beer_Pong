@@ -26,3 +26,4 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ""
       HOST_IP: ${HOST_IP:-localhost}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-roccadaspideBeer}

@@ -58,11 +58,16 @@ async function createTeam() {
         giocatori: []
     };
 
-    await fetch(API_URL, {
+    const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTeam)
     });
+
+    if (response.status === 401) {
+        showNotify("🔒 Accesso Negato", "Devi inserire la password admin!", "danger");
+        return;
+    }
 
     input.value = '';
     loadTeams();
@@ -77,13 +82,21 @@ function openDeleteSingleModal(id) {
 }
 
 async function confirmDeleteSingle() {
-    await fetch(`${API_URL}/${activeTeamId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_URL}/${activeTeamId}`, { method: 'DELETE' });
+    if (response.status === 401) {
+        showNotify("🔒 Accesso Negato", "Password admin necessaria!", "danger");
+        return;
+    }
     closeModal('deleteSingleModal');
     loadTeams();
 }
 
 async function confirmDeleteAll() {
-    await fetch(`${API_URL}/all`, { method: 'DELETE' });
+    const response = await fetch(`${API_URL}/all`, { method: 'DELETE' });
+    if (response.status === 401) {
+        showNotify("🔒 Accesso Negato", "Password admin necessaria!", "danger");
+        return;
+    }
     closeModal('deleteAllModal');
     loadTeams();
     loadPartite();
@@ -252,74 +265,65 @@ function renderTeams() {
 }
 
 async function generateRandomMatches() {
-    const matchResponse = await fetch(`${API_URL}/partite`);
-    const currentMatches = await matchResponse.json();
-    
-    if (currentMatches.some(p => p.giocata && p.girone === 99)) { // 99 per la Finalissima
-        showNotify("🏆 Torneo Finito", "Il torneo è già concluso!", "success");
-        return;
-    }
+    try {
+        const matchResponse = await fetch(`${API_URL}/partite`);
+        if (matchResponse.status === 401) {
+            showNotify("🔒 Login Richiesto", "Per favore ricarica la pagina e inserisci le credenziali admin.", "danger");
+            return;
+        }
+        const currentMatches = await matchResponse.json();
+        
+        const incomplete = currentMatches.filter(p => !p.giocata);
+        if (currentMatches.length > 0 && incomplete.length > 0) {
+            showNotify("⚠️ Partite in corso", "Finisci i match attuali prima di generare i nuovi!", "warning");
+            switchTab('live');
+            return;
+        }
 
-    const incomplete = currentMatches.filter(p => !p.giocata);
-    if (currentMatches.length > 0 && incomplete.length > 0) {
-        showNotify("⚠️ Round in corso", "Ci sono ancora dei match da giocare!", "warning");
-        return;
-    }
+        const activeTeams = teams.filter(t => t.sconfitte < 2);
+        if (activeTeams.length < 2) {
+            showNotify("⚠️ Squadre insufficienti", "Servono almeno 2 squadre per continuare!", "warning");
+            return;
+        }
 
-    const activeTeams = teams.filter(t => t.sconfitte < 2);
-    if (activeTeams.length < 2) {
-        showNotify("⚠️ Squadre insufficienti", "Servono almeno 2 squadre attive!", "warning");
-        return;
-    }
-
-    if (activeTeams.length === 2) {
-        showNotify("🏆 FINALISSIMA", "È il momento dello scontro finale!", "warning");
-        await createBalancedMatches(activeTeams, 99); 
-    } else if (activeTeams.length <= 4) {
-        showNotify("🔥 SEMIFINALI", "I gironi si uniscono per la fase finale.", "warning");
-        await createBalancedMatches(activeTeams, 88); // 88 per le semifinali
-    } else {
-        // Genera match per ogni girone che ha squadre
-        const gironi = [1, 2, 3, 4];
-        let matchGenerated = false;
-        for (const g of gironi) {
-            const teamsInGirone = activeTeams.filter(t => t.girone === g);
-            if (teamsInGirone.length >= 2) {
-                await createBalancedMatches(teamsInGirone, g);
-                matchGenerated = true;
+        let generatedAny = false;
+        if (activeTeams.length === 2) {
+            await createBalancedMatches(activeTeams, 99); 
+            generatedAny = true;
+        } else if (activeTeams.length <= 4) {
+            await createBalancedMatches(activeTeams, 88);
+            generatedAny = true;
+        } else {
+            const gironi = [1, 2, 3, 4];
+            for (const g of gironi) {
+                const teamsInGirone = activeTeams.filter(t => t.girone === g);
+                if (teamsInGirone.length >= 2) {
+                    const success = await createBalancedMatches(teamsInGirone, g);
+                    if (success) generatedAny = true;
+                }
+            }
+            
+            if (!generatedAny) {
+                const success = await createBalancedMatches(activeTeams, 1);
+                if (success) generatedAny = true;
             }
         }
-        
-        if (!matchGenerated) {
-            // Se nessun girone ha almeno 2 squadre ma il totale è > 4, uniamo tutto in un girone unico temporaneo
-            showNotify("🔄 Unione Gironi", "Squadre sparse unite per procedere.", "info");
-            await createBalancedMatches(activeTeams, 1);
+
+        if (generatedAny) {
+            showNotify("✅ Round Generato", "Nuove sfide pronte in campo!", "success");
+            await loadPartite();
+            switchTab('live');
         } else {
-            showNotify("✅ Prossimo Round", "Nuove partite generate nei gironi!", "success");
+            showNotify("ℹ️ Nulla da generare", "Le squadre sono già state accoppiate o manca il numero minimo.", "info");
         }
+    } catch (e) {
+        console.error("Errore generazione:", e);
+        showNotify("❌ Errore", "Impossibile generare i match. Riprova.", "danger");
     }
-    await loadPartite();
-    switchTab('live');
 }
 
 async function createBalancedMatches(squadre, gironeNum) {
-    if (gironeNum === 99 && squadre.length === 2) {
-        const partita = {
-            squadra1: { id: squadre[0].id },
-            squadra2: { id: squadre[1].id },
-            bicchieriSquadra1: 0,
-            bicchieriSquadra2: 0,
-            girone: 99,
-            giocata: false
-        };
-        await fetch(`${API_URL}/partite/nuova`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(partita)
-        });
-        return;
-    }
-
+    let created = false;
     const groups = {};
     squadre.forEach(s => {
         const key = `${s.vittorie}-${s.sconfitte}`;
@@ -338,13 +342,19 @@ async function createBalancedMatches(squadre, gironeNum) {
                 girone: gironeNum,
                 giocata: false
             };
-            await fetch(`${API_URL}/partite/nuova`, {
+            const response = await fetch(`${API_URL}/partite/nuova`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(partita)
             });
+            if (response.status === 401) {
+                showNotify("🔒 Accesso Negato", "Devi inserire la password admin per generare i match!", "danger");
+                return false;
+            }
+            created = true;
         }
     }
+    return created;
 }
 
 function showNotify(title, message, type = 'info') {
@@ -634,11 +644,16 @@ async function saveMatch() {
         giocata: true
     };
 
-    await fetch(`${API_URL}/partite`, {
+    const response = await fetch(`${API_URL}/partite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(partita)
     });
+
+    if (response.status === 401) {
+        showNotify("🔒 Accesso Negato", "Inserisci User e Pass admin per salvare i risultati!", "danger");
+        return;
+    }
 
     document.getElementById('matchScore1').value = '0';
     document.getElementById('matchScore2').value = '0';
@@ -648,8 +663,14 @@ async function saveMatch() {
     showNotify("🎯 Registrato", "Risultato salvato correttamente!", "success");
 }
 
-function openDeleteAllModal() { document.getElementById('deleteAllModal').style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openModal(id) {
+    if (isReadonly && (id === 'deleteAllModal' || id === 'deleteSingleModal' || id === 'playerModal' || id === 'pointsModal')) {
+        return; // Impedisce l'apertura di modali di modifica in sola lettura
+    }
+    document.getElementById(id).style.display = 'flex';
+}
+
 function renderPlayersList() {
     const team = teams.find(t => t.id === activeTeamId);
     const container = document.getElementById('playerList');
@@ -661,31 +682,12 @@ function renderPlayersList() {
 }
 
 async function showQRCodeModal() {
-    let host = window.location.host;
-    let usingAutoIP = false;
-
-    if (host.includes('localhost') || host.includes('127.0.0.1')) {
-        try {
-            const response = await fetch('/api/squadre/ip');
-            const ip = await response.text();
-            if (ip && ip.trim() !== 'localhost' && ip.trim() !== '') {
-                host = ip.trim() + ":8081";
-                usingAutoIP = true;
-            } else {
-                const manualIp = prompt("⚠️ CONFIGURAZIONE NECESSARIA ⚠️\nInserisci l'IP del tuo PC (es. 192.168.1.15) per far funzionare il QR Code sul telefono:");
-                if (manualIp && manualIp.trim() !== "") {
-                    host = manualIp.trim() + ":8081";
-                }
-            }
-        } catch(e) {
-            console.error("Errore recupero IP:", e);
-        }
-    }
-
-    // Costruisci URL pulito
-    const currentUrl = "http://" + host + "/?view=readonly";
+    // Usiamo il link pubblico del Tunnel per far funzionare il QR ovunque (Wi-Fi e 4G)
+    const tunnelUrl = "https://beerpong-torneo-premium-2024.loca.lt";
+    const currentUrl = tunnelUrl + "/?view=readonly";
     
-    showNotify("Generazione QR", `Indirizzo: ${host}`, "info");
+    showNotify("Generazione QR Pubblico", "Il QR funzionera' ovunque col 4G!", "success");
+
     const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(currentUrl);
     document.getElementById('qrImage').src = qrUrl;
     document.getElementById('qrModal').style.display = 'flex';

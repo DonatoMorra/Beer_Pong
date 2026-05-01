@@ -89,27 +89,32 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 2000;
+    animation: fadeInBg 0.3s ease;
 }
 
 .modal-dialog-custom {
-    background: white;
-    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 32px;
     width: 90%;
-    max-width: 400px;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-    animation: fadeInModal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    border: 1px solid rgba(255,123,0,0.1);
+    max-width: 450px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.5) inset;
+    animation: modalPopUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: none;
+    padding: 2.5rem !important;
 }
 
-@keyframes fadeInModal {
-    from { opacity: 0; transform: translateY(-40px) scale(0.9); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes modalPopUp {
+    from { opacity: 0; transform: scale(0.8) translateY(30px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .tab-content { display: none; }

@@ -18,16 +18,26 @@ if "%HOST_IP%"=="" (
 
 :: CREA IL FILE .ENV (Questo e' il modo piu' sicuro per Docker)
 echo HOST_IP=%HOST_IP% > .env
-echo [OK] Configurazione salvata in .env
+echo ADMIN_PASSWORD=roccadaspideBeer >> .env
+echo [OK] Configurazione sicura salvata in .env
 
 echo.
-echo Avvio dei container (con riavvio forzato per applicare l'IP)...
+echo Avvio dei container (con sicurezza Spring Security)...
 docker-compose up -d --build --force-recreate
 
 echo.
+echo Avvio del Tunnel Pubblico (per 4G/5G)...
+:: Avviamo il tunnel in una finestra separata cosi' se c'e' un errore lo vedi subito
+start "BeerPong-Tunnel" npx -y localtunnel --port 8081 --subdomain beerpong-torneo-premium-2024
+
+echo.
 echo ===================================================
-echo  SITO PRONTO!
+echo  SITO PRONTO E SICURO!
 echo  PC: http://localhost:8081
-echo  TELEFONI: http://%HOST_IP%:8081
+echo  LINK PUBBLICO (4G): https://beerpong-torneo-premium-2024.loca.lt
+echo.
+echo  CREDENZIALI ADMIN:
+echo  User: admin
+echo  Pass: roccadaspideBeer
 echo ===================================================
 pause
