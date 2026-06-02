@@ -26,6 +26,7 @@ public class SecurityConfig {
                         // Permetti a TUTTI di vedere la pagina principale e i dati (Classifica)
                         .requestMatchers("/", "/index.html", "/script.js", "/style.css", "/favicon.ico", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/squadre/auth/check").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/squadre/ip").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/squadre/**").permitAll()
                         // Proteggi TUTTE le operazioni di modifica (POST, DELETE, PUT)
                         .anyRequest().authenticated())

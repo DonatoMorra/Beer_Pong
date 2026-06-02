@@ -9,11 +9,21 @@ let isLoggedIn = false;
 window.authHeader = localStorage.getItem('beerpong_auth');
 if (window.authHeader) isLoggedIn = true;
 
-window.onload = () => {
+window.onload = async () => {
+    // Carica IP server per QR Code
+    try {
+        const ipRes = await fetch(`${API_URL}/ip`);
+        window.serverIp = await ipRes.text();
+    } catch(e) {
+        window.serverIp = window.location.hostname;
+    }
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('view') === 'readonly') {
         isReadonly = true;
         
+        // Nascondi elementi admin in modo aggressivo
+        document.body.classList.add('is-readonly');
         const header = document.querySelector('header');
         if (header) header.style.display = 'none';
         
@@ -21,19 +31,25 @@ window.onload = () => {
         if (nav) nav.style.display = 'none';
 
         document.body.insertAdjacentHTML('afterbegin', `
-            <div class="readonly-header text-center py-4 mb-4 bg-white shadow-sm border-bottom">
-                <h1 class="h3 fw-bold mb-1">🍺 BEERPONG <span class="text-warning">LIVE</span></h1>
-                <p class="text-muted small mb-0">Classifica del Torneo</p>
+            <div class="readonly-header text-center py-4 mb-4 bg-white shadow-sm border-bottom animate__animated animate__fadeInDown">
+                <h1 class="h3 fw-bold mb-1" style="color: var(--primary);">🍺 BEERPONG <span class="text-warning">LIVE</span></h1>
+                <p class="text-muted small mb-0 fw-bold">🏆 Classifica e Risultati in tempo reale</p>
             </div>
         `);
         
         switchTab('classifica');
-        setInterval(loadTeams, 5000);
+        // Auto-refresh per gli spettatori ogni 10 secondi
+        setInterval(() => {
+            loadTeams();
+            if (activeTab === 'live') loadLivePartite();
+        }, 10000);
     } else {
         switchTab('classifica'); 
     }
     loadTeams();
 };
+
+let activeTab = 'classifica';
 
 async function loadTeams() {
     try {
@@ -276,7 +292,13 @@ function renderTeams() {
         
         const updateBtn = (btn) => {
             if (!btn) return;
-            if (activeTeams.length === 2) {
+            const stages = partite.map(p => p.girone);
+            const maxStage = partite.length > 0 ? Math.max(...stages) : 0;
+
+            if (maxStage === 99) {
+                btn.innerHTML = "🏁 TORNEO CONCLUSO";
+                btn.className = "btn btn-dark btn-lg fw-bold rounded-pill px-5 shadow w-100 disabled";
+            } else if (maxStage === 88 || activeTeams.length === 2) {
                 btn.innerHTML = "🏆 GENERA FINALISSIMA";
                 btn.className = "btn btn-danger btn-lg fw-bold rounded-pill px-5 shadow w-100";
             } else if (activeTeams.length <= 4) {
@@ -319,24 +341,77 @@ async function generateRandomMatches() {
         }
 
         let generatedAny = false;
+        
+        // LOGICA DI PROGRESSIONE ROBUSTA (State-Machine)
+        const stages = currentMatches.map(p => p.girone);
+        const maxStage = currentMatches.length > 0 ? Math.max(...stages) : 0;
+
+        if (maxStage === 99) {
+            showNotify("🏁 Torneo Concluso", "La finale è già stata disputata!", "info");
+            return;
+        }
+
+        // Determiniamo se dobbiamo passare alla fase successiva
         if (activeTeams.length === 2) {
-            await createBalancedMatches(activeTeams, 99); 
-            generatedAny = true;
-        } else if (activeTeams.length <= 4) {
-            await createBalancedMatches(activeTeams, 88);
-            generatedAny = true;
+            // Con due sole squadre attive generiamo direttamente la finalissima.
+            const finalists = [...activeTeams]
+                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .slice(0, 2);
+
+            if (finalists.length === 2) {
+                await createBalancedMatches(finalists, 99);
+                generatedAny = true;
+            } else {
+                showNotify("⚠️ Errore", "Impossibile determinare i 2 finalisti.", "danger");
+                return;
+            }
+        } else if (maxStage === 88) {
+            // --- FASE: GENERAZIONE FINALE (99) ---
+            const finalists = [...activeTeams]
+                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .slice(0, 2);
+            
+            if (finalists.length === 2) {
+                await createBalancedMatches(finalists, 99);
+                generatedAny = true;
+            } else {
+                showNotify("⚠️ Errore", "Impossibile determinare i 2 finalisti.", "danger");
+                return;
+            }
+        } else if (maxStage > 0 || activeTeams.length <= 4) {
+            // --- FASE: GENERAZIONE SEMIFINALI (88) ---
+            // Se abbiamo già fatto almeno un round di gironi, passiamo alle semifinali con i migliori 4
+            const semifinalists = [...activeTeams]
+                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .slice(0, 4);
+            
+            if (semifinalists.length >= 2) {
+                await createBalancedMatches(semifinalists, 88);
+                generatedAny = true;
+            } else {
+                showNotify("⚠️ Squadre insufficienti", "Mancano squadre per le semifinali.", "warning");
+                return;
+            }
         } else {
+            // --- FASE: GENERAZIONE GIRONI INIZIALI (1-4) ---
             const gironi = [1, 2, 3, 4];
+            let teamsMatched = new Set();
+
             for (const g of gironi) {
-                const teamsInGirone = activeTeams.filter(t => t.girone === g);
+                const teamsInGirone = activeTeams.filter(t => t.girone === g && !teamsMatched.has(t.id));
                 if (teamsInGirone.length >= 2) {
                     const success = await createBalancedMatches(teamsInGirone, g);
-                    if (success) generatedAny = true;
+                    if (success) {
+                        generatedAny = true;
+                        teamsInGirone.forEach(t => teamsMatched.add(t.id));
+                    }
                 }
             }
             
-            if (!generatedAny) {
-                const success = await createBalancedMatches(activeTeams, 1);
+            // Se rimangono squadre "spaiate" tra i gironi, le accoppiamo in un girone misto (0)
+            const leftoverTeams = activeTeams.filter(t => !teamsMatched.has(t.id));
+            if (leftoverTeams.length >= 2) {
+                const success = await createBalancedMatches(leftoverTeams, 0); // Girone misto
                 if (success) generatedAny = true;
             }
         }
@@ -346,7 +421,7 @@ async function generateRandomMatches() {
             await loadPartite();
             switchTab('live');
         } else {
-            showNotify("ℹ️ Nulla da generare", "Le squadre sono già state accoppiate o manca il numero minimo.", "info");
+            showNotify("ℹ️ Nulla da generare", "Tutte le squadre hanno già sfidanti o sono dispari.", "info");
         }
     } catch (e) {
         console.error("Errore generazione:", e);
@@ -366,9 +441,24 @@ async function createBalancedMatches(squadre, gironeNum) {
     for (const key in groups) {
         let shuffled = groups[key].sort(() => 0.5 - Math.random());
         for (let i = 0; i < shuffled.length - 1; i += 2) {
+            const s1 = shuffled[i];
+            const s2 = shuffled[i+1];
+
+            // Controllo duplicati: hanno già giocato tra loro?
+            const alreadyPlayed = allPartite.some(p => 
+                (p.squadra1.id == s1.id && p.squadra2.id == s2.id) ||
+                (p.squadra1.id == s2.id && p.squadra2.id == s1.id)
+            );
+
+            // In semifinale e finale ignoriamo il controllo duplicati (devono giocare!)
+            if (alreadyPlayed && gironeNum < 80) {
+                console.log(`Salto match già giocato: ${s1.nome} vs ${s2.nome}`);
+                continue;
+            }
+
             const partita = {
-                squadra1: { id: shuffled[i].id },
-                squadra2: { id: shuffled[i+1].id },
+                squadra1: { id: s1.id },
+                squadra2: { id: s2.id },
                 bicchieriSquadra1: 0,
                 bicchieriSquadra2: 0,
                 girone: gironeNum,
@@ -517,12 +607,25 @@ function switchTab(tab) {
         showNotify("🔐 Accesso Richiesto", "Effettua il login per gestire il torneo.", "info");
     }
 
+    if (isReadonly) {
+        // Forza sola lettura se il parametro è presente
+        if (tab !== 'classifica' && tab !== 'live') {
+            tab = 'classifica';
+        }
+    }
+
+    activeTab = tab;
+
     const tabs = document.querySelectorAll('.tab-content');
-    tabs.forEach(t => t.style.display = 'none');
+    tabs.forEach(t => {
+        t.style.display = 'none';
+        t.classList.remove('active');
+    });
     
     const targetTab = document.getElementById(`tab-${tab}`);
     if (targetTab) {
         targetTab.style.display = 'block';
+        setTimeout(() => targetTab.classList.add('active'), 10);
     } else {
         console.error("Tab non trovata:", tab);
         return;
@@ -533,14 +636,7 @@ function switchTab(tab) {
     
     // Esegui caricamento dati specifico per la tab
     if (tab === 'classifica') renderLeaderboard();
-    if (tab === 'live') {
-        fetch(`${API_URL}/partite`)
-            .then(res => res.json())
-            .then(data => {
-                allPartite = data;
-                renderLiveMatches();
-            }).catch(e => console.error("Errore live:", e));
-    }
+    if (tab === 'live') loadLivePartite();
     if (tab === 'admin') updateAdminView();
     if (tab === 'partite') {
         loadPartite();
@@ -680,6 +776,15 @@ async function saveMatch() {
         return;
     }
 
+    // GESTIONE PAREGGI IN FASI FINALI
+    if (b1 === b2 && (activeMatchId)) {
+        const currentMatch = allPartite.find(p => p.id === activeMatchId);
+        if (currentMatch && (currentMatch.girone === 88 || currentMatch.girone === 99)) {
+            showNotify("🚫 Pareggio non ammesso", "Nelle fasi finali deve esserci un vincitore! Continuate a giocare finché una squadra non segna un punto in più.", "danger");
+            return;
+        }
+    }
+
     const team1 = teams.find(t => t.id == s1Id);
 
     const activeTeams = teams.filter(t => t.sconfitte < 2);
@@ -719,6 +824,9 @@ async function saveMatch() {
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openDeleteAllModal() {
+    openModal('deleteAllModal');
+}
 function openModal(id) {
     if (isReadonly && (id === 'deleteAllModal' || id === 'deleteSingleModal' || id === 'playerModal' || id === 'pointsModal')) {
         return; // Impedisce l'apertura di modali di modifica in sola lettura
@@ -736,15 +844,38 @@ function renderPlayersList() {
         </div>`).join('') || '<div class="p-3 text-center text-muted">Senza giocatori</div>';
 }
 
-async function showQRCodeModal() {
-    // Usiamo il link pubblico del Tunnel per far funzionare il QR ovunque (Wi-Fi e 4G)
-    const tunnelUrl = "https://beerpong-torneo-premium-2024.loca.lt";
-    const currentUrl = tunnelUrl + "/?view=readonly";
-    
-    showNotify("Generazione QR Pubblico", "Il QR funzionera' ovunque col 4G!", "success");
+async function loadLivePartite() {
+    try {
+        const res = await fetch(`${API_URL}/partite`);
+        allPartite = await res.json();
+        renderLiveMatches();
+    } catch(e) {
+        console.error("Errore live:", e);
+    }
+}
 
-    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(currentUrl);
-    document.getElementById('qrImage').src = qrUrl;
+async function showQRCodeModal() {
+    const hostname = window.location.hostname;
+    const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(hostname);
+    const host = isLocalHost && window.serverIp ? window.serverIp : hostname;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    const currentUrl = `${window.location.protocol}//${host}${port}/?view=readonly`;
+
+    showNotify("Generazione QR WiFi", "I tuoi amici possono inquadrare il QR!", "success");
+
+    const qrImage = document.getElementById('qrImage');
+    const qrLink = document.getElementById('qrLink');
+    const qrUrl = `/api/squadre/qr?data=${encodeURIComponent(currentUrl)}`;
+
+    qrImage.alt = 'QR Code';
+    qrImage.src = qrUrl;
+    qrLink.textContent = currentUrl;
+    qrLink.title = currentUrl;
+    qrImage.onerror = () => {
+        qrImage.alt = 'QR code non disponibile';
+        qrLink.innerHTML = `Link diretto: <a href="${currentUrl}" target="_blank" rel="noopener noreferrer">${currentUrl}</a>`;
+    };
+
     document.getElementById('qrModal').style.display = 'flex';
 }
 

@@ -1,253 +1,385 @@
 :root {
-    --primary: #FF7B00; /* Vibrant Orange */
-    --primary-light: #FF9E43;
-    --secondary: #FFD000; /* Vibrant Yellow */
-    --bg-gradient-start: #FFE4B5;
-    --bg-gradient-end: #FFF8E7;
-    --text-dark: #2C3E50;
-    --card-bg: rgba(255, 255, 255, 0.85);
+    --bg-0: #fffaf3;
+    --bg-1: #fff1df;
+    --bg-2: #ffe1b8;
+    --surface: rgba(255, 255, 255, 0.78);
+    --surface-strong: rgba(255, 255, 255, 0.92);
+    --text: #1f2937;
+    --muted: #6b7280;
+    --primary: #ff7a18;
+    --primary-2: #ffb347;
+    --accent: #1f7aec;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --shadow-lg: 0 30px 70px rgba(31, 41, 55, 0.14);
+    --shadow-md: 0 18px 40px rgba(31, 41, 55, 0.10);
+    --radius-xl: 2rem;
+    --radius-lg: 1.5rem;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {
-    background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
-    background-attachment: fixed;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    color: var(--text-dark);
     min-height: 100vh;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top left, rgba(255, 186, 102, 0.42), transparent 36%),
+        radial-gradient(circle at top right, rgba(31, 122, 236, 0.12), transparent 28%),
+        linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
+    background-attachment: fixed;
 }
 
-.navbar {
-    background: var(--card-bg) !important;
-    backdrop-filter: blur(10px);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.5) !important;
+.page-shell {
+    position: relative;
+    overflow-x: hidden;
+}
+
+.page-glow {
+    position: fixed;
+    inset: auto;
+    width: 28rem;
+    height: 28rem;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(40px);
+    opacity: 0.45;
+    z-index: -1;
+}
+
+.page-glow-one {
+    top: -8rem;
+    left: -10rem;
+    background: rgba(255, 122, 24, 0.28);
+}
+
+.page-glow-two {
+    right: -10rem;
+    bottom: -10rem;
+    background: rgba(31, 122, 236, 0.18);
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 122, 24, 0.12);
+    color: #c65300;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.fw-black {
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.hero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.hero-header .lead {
+    max-width: 52rem;
+}
+
+.modern-nav {
+    background: var(--surface) !important;
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.65) !important;
+    box-shadow: var(--shadow-md);
 }
 
 .navbar-brand {
     color: var(--primary) !important;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
 }
 
 .nav-link {
-    color: var(--text-dark) !important;
-    transition: all 0.3s ease;
+    color: var(--text) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
 .nav-link:hover {
+    transform: translateY(-1px);
     color: var(--primary) !important;
-    transform: translateY(-2px);
 }
 
 .nav-link.active {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
-    color: white !important;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%) !important;
+    color: #fff !important;
     border: none !important;
-    box-shadow: 0 4px 10px rgba(255, 123, 0, 0.3);
+    box-shadow: 0 14px 24px rgba(255, 122, 24, 0.25);
+}
+
+.main-card,
+.auth-panel,
+.team-card,
+.match-registration-card {
+    background: var(--surface);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow: var(--shadow-md);
 }
 
 .main-card {
-    background: var(--card-bg) !important;
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-xl);
+}
+
+.auth-panel {
+    width: min(100%, 460px);
     border-radius: 2rem;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.08) !important;
 }
 
 .team-card {
-    background: white;
-    border: none;
-    border-left: 6px solid var(--primary);
-    border-radius: 16px;
-    padding: 1.2rem;
+    border-radius: 1.15rem;
+    padding: 1.15rem;
     margin-bottom: 1rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    border-left: 6px solid var(--primary);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .team-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 25px rgba(255, 123, 0, 0.15);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-left-color: var(--accent);
 }
 
-.btn-primary, .btn-success, .btn-warning, .btn-danger {
-    border: none;
-    transition: all 0.3s ease;
+.match-registration-card {
+    border-radius: 2rem;
 }
 
-.btn-primary { background: linear-gradient(135deg, #007BFF, #0056b3); }
-.btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); }
-.btn-warning { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white !important; }
-.btn-danger { background: linear-gradient(135deg, #dc3545, #c82333); }
+.bg-soft {
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.btn {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
 
 .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+    filter: saturate(1.04);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent) 0%, #1558b0 100%);
+    border: none;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #1faa59 0%, #14804c 100%);
+    border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
+    color: #fff !important;
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #c81e1e 100%);
+    border: none;
+}
+
+.btn-outline-danger,
+.btn-outline-secondary,
+.btn-outline-dark {
+    border-width: 1.5px;
+}
+
+.form-control,
+.form-select {
+    border-color: rgba(107, 114, 128, 0.18);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: rgba(255, 122, 24, 0.6);
+    box-shadow: 0 0 0 0.25rem rgba(255, 122, 24, 0.18);
+}
+
+.form-select-lg {
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.78);
+}
+
+.score-input {
+    max-width: 88px;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.score-input::-webkit-outer-spin-button,
+.score-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.score-input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.vs-circle {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    box-shadow: 0 14px 25px rgba(255, 122, 24, 0.30);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%) !important;
 }
 
 .custom-modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(8px);
+    inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 1rem;
+    background: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(10px);
     z-index: 2000;
-    animation: fadeInBg 0.3s ease;
+    animation: fadeInBg 0.2s ease;
 }
 
 .modal-dialog-custom {
-    background: rgba(255, 255, 255, 0.95);
+    width: min(100%, 470px);
+    background: var(--surface-strong);
     backdrop-filter: blur(20px);
-    border-radius: 32px;
-    width: 90%;
-    max-width: 450px;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.5) inset;
-    animation: modalPopUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    border: none;
-    padding: 2.5rem !important;
-}
-
-@keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
-
-@keyframes modalPopUp {
-    from { opacity: 0; transform: scale(0.8) translateY(30px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.tab-content { display: none; }
-.tab-content.active { display: block; animation: fadeInTab 0.5s ease-out; }
-
-@keyframes fadeInTab {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.match-registration-card {
-    background: white;
-    border: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
-}
-
-.vs-circle {
-    font-size: 1.2rem;
-    box-shadow: 0 4px 15px rgba(255, 123, 0, 0.4);
-    background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
-}
-
-.form-select-lg {
-    font-size: 1.1rem;
-    cursor: pointer;
-    background-color: #f8f9fa;
-    border: 2px solid #e9ecef;
-    transition: all 0.3s;
-}
-
-.form-select-lg:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 0.25rem rgba(255, 123, 0, 0.25);
+    border-radius: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    animation: modalPopUp 0.35s ease;
 }
 
 .toast-custom {
-    min-width: 200px;
-    max-width: 300px;
-    padding: 1rem 1.5rem;
-    background: white;
-    color: var(--text-dark);
+    min-width: 260px;
+    max-width: 340px;
+    padding: 0.95rem 1.15rem;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text);
     border-left: 5px solid var(--primary);
-    border-radius: 12px;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-    animation: toastSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    animation: toastSlideIn 0.25s ease;
 }
 
-@keyframes toastSlideIn {
-    from { transform: translateX(100%) scale(0.9); opacity: 0; }
-    to { transform: translateX(0) scale(1); opacity: 1; }
+#winner-banner {
+    background: linear-gradient(135deg, rgba(255, 122, 24, 0.95), rgba(255, 179, 71, 0.95)) !important;
+    color: white !important;
+    box-shadow: 0 25px 55px rgba(255, 122, 24, 0.30) !important;
 }
 
-#winner-banner { 
-    background: linear-gradient(135deg, var(--secondary), var(--primary)) !important;
-    animation: bannerPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-    border: none !important;
-    box-shadow: 0 20px 40px rgba(255, 123, 0, 0.3) !important;
+#winner-banner * {
+    color: inherit !important;
 }
 
-#winner-banner h2, #winner-banner div { color: white !important; text-shadow: 1px 1px 5px rgba(0,0,0,0.2); }
-
-@keyframes bannerPop { 
-    from { transform: scale(0.8) translateY(20px); opacity: 0; } 
-    to { transform: scale(1) translateY(0); opacity: 1; } 
-}
-
-/* --- STILI RESPONSIVE --- */
 .readonly-header {
     position: sticky;
     top: 0;
     z-index: 1000;
+    background: rgba(255, 255, 255, 0.86) !important;
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255, 122, 24, 0.2) !important;
+}
+
+.tracking-widest {
+    letter-spacing: 0.18em;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeInTab 0.28s ease-out;
+}
+
+.table {
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 122, 24, 0.05);
+}
+
+.badge {
+    font-weight: 700;
+}
+
+.list-group-item {
+    background: transparent;
+}
+
+@keyframes fadeInBg {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalPopUp {
+    from { opacity: 0; transform: scale(0.96) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastSlideIn {
+    from { transform: translateX(25px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@media (max-width: 992px) {
+    .hero-header {
+        align-items: start;
+        flex-direction: column;
+    }
 }
 
 @media (max-width: 768px) {
     .container {
-        padding-left: 10px;
-        padding-right: 10px;
-    }
-    
-    .navbar {
-        padding: 0.5rem 1rem;
-    }
-    
-    .navbar-brand {
-        font-size: 1.1rem;
+        padding-left: 12px;
+        padding-right: 12px;
     }
 
     .main-card {
-        border-radius: 1.5rem;
+        border-radius: 1.4rem;
         padding: 1rem !important;
     }
 
-    .h4, h4 {
-        font-size: 1.2rem;
-    }
-
-    .table {
-        font-size: 0.85rem;
-    }
-
-    .btn-light.rounded-pill {
-        padding: 0.5rem 1.2rem !important;
-        margin-bottom: 5px;
-        width: 100%;
-        text-align: center;
+    .auth-panel {
+        border-radius: 1.4rem;
     }
 
     .team-card {
         padding: 1rem;
-        border-radius: 12px;
-    }
-    
-    .team-card h5 {
-        font-size: 1rem;
     }
 
-    .custom-modal .modal-dialog-custom {
-        width: 95%;
-        margin: 10px;
+    .vs-circle {
+        width: 52px;
+        height: 52px;
     }
-}
 
-.extra-small {
-    font-size: 0.6rem !important;
-    padding: 0.2rem 0.5rem !important;
-}
+    .score-input {
+        max-width: 76px;
+        font-size: 1.65rem;
+    }
 
-.tracking-widest {
-    letter-spacing: 0.2em;
-}
-
-.border-warning {
-    border-color: var(--primary) !important;
+    .navbar-nav .btn {
+        width: 100%;
+    }
 }
