@@ -62,7 +62,7 @@
 
 4. **Accedi all'app**:
    - **Main App**: [http://localhost:8081](http://localhost:8081)
-   - **Login Default**: User: `admin` | Pass: `roccadaspideBeer` (se non cambiata nel .env)
+   - **Login Default**: User: `admin` | Pass: `admin` (se non cambiata nel .env)
 
 ---
 
