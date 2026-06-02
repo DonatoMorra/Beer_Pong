@@ -53,7 +53,11 @@
 
 3. **Avvia i container**:
    ```bash
-   docker-compose up --build -d
+   # Opzione A - esposizione porta DB su host (porta host: 3308 -> container: 3306)
+   docker compose up --build -d
+
+   # Opzione B - DB accessibile solo dalla rete Docker (non esporre la porta MySQL al host)
+   docker compose -f docker-compose.no-ports.yml up --build -d
    ```
 
 4. **Accedi all'app**:
