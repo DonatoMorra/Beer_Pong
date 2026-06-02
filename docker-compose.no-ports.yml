@@ -1,12 +1,10 @@
 services:
   db:
     image: mysql:8.0
-    container_name: mysql_db
+    container_name: mysql_db_no_ports
     environment:
       MYSQL_DATABASE: BeerPong
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-    ports:
-      - "3308:3306"
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       interval: 10s
@@ -15,7 +13,7 @@ services:
 
   app:
     build: .
-    container_name: beer_pong_champion
+    container_name: beer_pong_champion_no_ports
     ports:
       - "8081:8081"
     depends_on:
