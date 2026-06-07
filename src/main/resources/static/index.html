@@ -26,10 +26,6 @@
                     <h1 class="display-5 fw-black m-0">BEERPONG <span class="text-warning">CHAMPIONS</span></h1>
                     <p class="lead text-muted mb-0 mt-2">Gestione squadre, risultati, classifica e finale</p>
                 </div>
-                <div class="d-flex gap-2 flex-wrap justify-content-lg-end">
-                    <button id="header-reset-btn" class="btn btn-outline-danger fw-bold rounded-pill px-4 d-none"
-                        onclick="openDeleteAllModal()">🗑️ Reset torneo</button>
-                </div>
             </header>
 
             <nav class="navbar navbar-expand-lg navbar-light modern-nav rounded-5 shadow-sm mb-4 mb-lg-5 px-3 px-lg-4 py-3 border">
@@ -55,7 +51,7 @@
                             </li>
                             <li class="nav-item ms-lg-4">
                                 <button id="nav-admin" class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm"
-                                    onclick="switchTab('admin')">🔐 Login</button>
+                                    onclick="switchTab('admin')"> Reset </button>
                             </li>
                         </ul>
                     </div>
@@ -64,50 +60,17 @@
 
             <div class="main-card shadow-sm p-3 p-md-4 p-lg-5 bg-white rounded-5">
                 <div id="tab-admin" class="tab-content" style="display:none;">
-                    <div id="admin-login-section" class="text-center py-4 py-lg-5">
-                        <div class="auth-panel p-4 p-md-5 d-inline-block shadow-lg border-0">
-                            <div class="mb-4">
-                                <span class="display-4">🔐</span>
-                                <h2 class="h4 fw-bold mt-3">Accesso riservato</h2>
-                                <p class="text-muted small mb-0">Inserisci le credenziali per gestire il torneo.</p>
-                            </div>
-                            <div class="mb-3">
-                                <input type="text" id="loginUser" class="form-control form-control-lg rounded-pill px-4 py-3"
-                                    placeholder="Username" autocomplete="username">
-                            </div>
-                            <div class="mb-4">
-                                <input type="password" id="loginPass" class="form-control form-control-lg rounded-pill px-4 py-3"
-                                    placeholder="Password" autocomplete="current-password">
-                            </div>
-                            <button class="btn btn-primary w-100 fw-bold rounded-pill py-3 shadow"
-                                onclick="attemptLogin()">Entra nell'area admin</button>
-                        </div>
-                    </div>
-
-                    <div id="admin-controls-section" style="display:none;" class="text-center py-4 py-lg-5">
+                    <div id="admin-controls-section" class="text-center py-4 py-lg-5">
                         <div class="auth-panel p-4 p-md-5 d-inline-block shadow-lg border-0">
                             <div class="mb-4">
                                 <span class="display-4">⚙️</span>
                                 <h2 class="h4 fw-bold mt-3 text-success">Pannello controllo</h2>
-                                <p class="text-muted small mb-0">Usa la navigazione per gestire squadre, risultati e fasi del torneo.</p>
                             </div>
-
-                            <div class="card border-0 shadow-sm rounded-5 p-4 mt-4 bg-light-subtle">
-                                <h5 class="fw-bold mb-3">🚀 Prossima fase</h5>
-                                <div id="admin-next-round-btn-container">
-                                    <button class="btn btn-warning w-100 fw-bold rounded-pill py-3 shadow-sm"
-                                        id="btnNextRoundAdmin" onclick="generateRandomMatches()">🚀 Prossimo round</button>
-                                </div>
-                            </div>
-
                             <div class="card border-danger bg-danger bg-opacity-10 rounded-4 p-4 mt-4 text-center">
-                                <h5 class="fw-bold text-danger mb-3">Zona pericolo</h5>
                                 <button class="btn btn-danger w-100 fw-bold rounded-pill py-3 shadow-sm mb-3"
                                     onclick="openDeleteAllModal()">🗑️ Reset totale torneo</button>
                             </div>
 
-                            <button class="btn btn-outline-secondary w-100 fw-bold rounded-pill py-3 shadow-sm mt-4"
-                                onclick="logout()">🔒 Esci</button>
                         </div>
                     </div>
                 </div>
@@ -306,29 +269,21 @@
         </div>
     </div>
 
-    <div id="deleteAllModal" class="custom-modal" style="display:none;">
+        <div id="deleteAllModal" class="custom-modal" style="display:none;">
         <div class="modal-dialog-custom p-4 text-center">
             <h4 class="fw-bold text-danger mb-3">Sei sicuro?</h4>
             <p class="text-muted small">Questa azione cancellerà tutte le squadre dal database.</p>
+            <div class="mb-3">
+                <input type="password" id="deleteAllCode" class="form-control form-control-lg text-center fw-bold"
+                    placeholder="Codice di conferma">
+            </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-danger w-100 fw-bold" onclick="confirmDeleteAll()">Sì, elimina</button>
+                <button class="btn btn-danger w-100 fw-bold" onclick="confirmDeleteAll()">elimina</button>
                 <button class="btn btn-light border w-100" onclick="closeModal('deleteAllModal')">No</button>
             </div>
         </div>
     </div>
-
-    <div id="deleteSingleModal" class="custom-modal" style="display:none;">
-        <div class="modal-dialog-custom p-4 text-center">
-            <h4 class="fw-bold text-dark mb-3">Eliminare la squadra?</h4>
-            <p id="deleteSingleName" class="fw-bold text-primary mb-3"></p>
-            <div class="d-flex gap-2">
-                <button class="btn btn-danger w-100 fw-bold" onclick="confirmDeleteSingle()">Elimina</button>
-                <button class="btn btn-light border w-100" onclick="closeModal('deleteSingleModal')">Annulla</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="notificationModal" class="custom-modal" style="display:none;">
+<div id="notificationModal" class="custom-modal" style="display:none;">
         <div class="modal-dialog-custom p-4 text-center">
             <div id="notificationIcon" class="mb-3 h1"></div>
             <h4 id="notificationTitle" class="fw-bold mb-2"></h4>
@@ -353,3 +308,6 @@
 </body>
 
 </html>
+
+
+

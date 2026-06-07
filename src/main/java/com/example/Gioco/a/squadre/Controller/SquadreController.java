@@ -9,6 +9,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -18,8 +19,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.Gioco.a.squadre.Model.Partita;
@@ -34,6 +36,8 @@ import com.google.zxing.qrcode.QRCodeWriter;
 @RequestMapping("/api/squadre")
 @CrossOrigin(origins = "*")
 public class SquadreController {
+
+    private static final String DELETE_TOURNAMENT_CODE = "1234";
 
     @Autowired
     private SquadreService squadreService;
@@ -97,8 +101,8 @@ public class SquadreController {
     }
 
     @GetMapping("/auth/check")
-    public org.springframework.http.ResponseEntity<String> checkAuth() {
-        return org.springframework.http.ResponseEntity.ok("Authenticated");
+    public ResponseEntity<String> checkAuth() {
+        return ResponseEntity.ok("Authenticated");
     }
 
     @GetMapping
@@ -122,8 +126,13 @@ public class SquadreController {
     }
 
     @DeleteMapping("/all")
-    public void deleteAll() {
+    public ResponseEntity<Void> deleteAll(@RequestHeader(value = "X-Delete-Code", required = false) String deleteCode) {
+        if (!DELETE_TOURNAMENT_CODE.equals(deleteCode)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         squadreService.deleteAll();
+        return ResponseEntity.noContent().build();
     }
 
     // --- PARTITE ---

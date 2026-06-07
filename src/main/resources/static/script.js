@@ -5,9 +5,8 @@ let activeTeamId = null;
 let activeMatchId = null;
 
 let isReadonly = false;
-let isLoggedIn = false;
-window.authHeader = localStorage.getItem('beerpong_auth');
-if (window.authHeader) isLoggedIn = true;
+let isLoggedIn = true;
+window.authHeader = null;
 
 window.onload = async () => {
     // Carica IP server per QR Code
@@ -117,19 +116,31 @@ async function confirmDeleteSingle() {
 }
 
 async function confirmDeleteAll() {
-    const response = await fetch(`${API_URL}/all`, { 
-        method: 'DELETE',
-        headers: { 'Authorization': window.authHeader || '' }
-    });
-    if (response.status === 401) {
-        showNotify("🔒 Accesso Negato", "Password admin necessaria!", "danger");
+    const codeInput = document.getElementById('deleteAllCode');
+    const deleteCode = (codeInput?.value || '').trim();
+
+    if (deleteCode !== '1234') {
+        showNotify('? Codice errato', 'Inserisci il codice corretto per resettare il torneo.', 'danger');
         return;
     }
+
+    const response = await fetch(`${API_URL}/all`, {
+        method: 'DELETE',
+        headers: {
+            'X-Delete-Code': deleteCode
+        }
+    });
+
+    if (response.status === 403) {
+        showNotify('?? Codice non valido', 'Il codice di conferma non � corretto.', 'danger');
+        return;
+    }
+
     closeModal('deleteAllModal');
     loadTeams();
     loadPartite();
     switchTab('squadre'); // Torna alla creazione squadre
-    showNotify("🗑️ Reset", "Torneo resettato con successo!", "info");
+    showNotify('??? Reset', 'Torneo resettato con successo!', 'info');
 }
 
 // ─── GESTIONE PUNTI ─────────────────────────────────────────
@@ -825,6 +836,8 @@ async function saveMatch() {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function openDeleteAllModal() {
+    const codeInput = document.getElementById('deleteAllCode');
+    if (codeInput) codeInput.value = '';
     openModal('deleteAllModal');
 }
 function openModal(id) {
@@ -925,63 +938,26 @@ function updateAdminView() {
     const navPartite = document.getElementById('nav-partite-container');
     const headerReset = document.getElementById('header-reset-btn');
 
-    if (isLoggedIn) {
-        if (loginSection) loginSection.style.display = 'none';
-        if (controlsSection) controlsSection.style.display = 'block';
-        if (navSquadre) navSquadre.classList.remove('d-none');
-        if (navPartite) navPartite.classList.remove('d-none');
-        if (headerReset) headerReset.classList.remove('d-none');
-        if (navAdmin) {
-            navAdmin.innerHTML = "⚙️ ADMIN";
-            navAdmin.classList.replace('btn-primary', 'btn-success');
-        }
-    } else {
-        if (loginSection) loginSection.style.display = 'block';
-        if (controlsSection) controlsSection.style.display = 'none';
-        if (navSquadre) navSquadre.classList.add('d-none');
-        if (navPartite) navPartite.classList.add('d-none');
-        if (headerReset) headerReset.classList.add('d-none');
-        if (navAdmin) {
-            navAdmin.innerHTML = "🔐 LOGIN";
-            navAdmin.classList.replace('btn-success', 'btn-primary');
-        }
+    if (loginSection) loginSection.style.display = 'none';
+    if (controlsSection) controlsSection.style.display = 'block';
+    if (navSquadre) navSquadre.classList.remove('d-none');
+    if (navPartite) navPartite.classList.remove('d-none');
+    if (headerReset) headerReset.classList.remove('d-none');
+    if (navAdmin) {
+        navAdmin.innerHTML = 'Reset';
+        navAdmin.classList.remove('btn-primary');
+        navAdmin.classList.add('btn-success');
     }
 }
 
 async function attemptLogin() {
-    const user = document.getElementById('loginUser').value;
-    const pass = document.getElementById('loginPass').value;
-
-    if (!user || !pass) {
-        showNotify("⚠️ Campi vuoti", "Inserisci username e password.", "warning");
-        return;
-    }
-
-    try {
-        const authHeader = 'Basic ' + btoa(user + ':' + pass);
-        const response = await fetch(`${API_URL}/auth/check`, {
-            headers: { 'Authorization': authHeader }
-        });
-
-        if (response.ok) {
-            isLoggedIn = true;
-            window.authHeader = authHeader; 
-            localStorage.setItem('beerpong_auth', authHeader);
-            showNotify("🔓 Benvenuto", "Accesso admin effettuato!", "success");
-            updateAdminView();
-        } else {
-            showNotify("❌ Errore", "Credenziali non valide.", "danger");
-        }
-    } catch (e) {
-        showNotify("❌ Errore Server", "Impossibile collegarsi al server.", "danger");
-    }
+    showNotify("Login rimosso", "L'area admin � sempre disponibile.", "info");
 }
 
 function logout() {
-    isLoggedIn = false;
-    window.authHeader = null;
-    localStorage.removeItem('beerpong_auth');
-    showNotify("🔒 Logout", "Uscito dall'area admin.", "info");
-    switchTab('classifica');
+    showNotify("Login rimosso", "L'area admin � sempre disponibile.", "info");
     updateAdminView();
 }
+
+
+
