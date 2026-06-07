@@ -95,12 +95,8 @@
                                                 <input type="text" id="teamName" class="form-control"
                                                     placeholder="Nome squadra..."
                                                     onkeydown="if(event.key==='Enter') createTeam()">
-                                                <select id="teamGirone" class="form-select" style="max-width: 140px;">
-                                                    <option value="1">Girone 1</option>
-                                                    <option value="2">Girone 2</option>
-                                                    <option value="3">Girone 3</option>
-                                                    <option value="4">Girone 4</option>
-                                                </select>
+                                                <select id="teamGirone" class="form-select" style="max-width: 140px;"></select>
+                                                <button type="button" class="btn btn-outline-secondary" onclick="addGirone()">+</button>
                                                 <button class="btn btn-primary px-4 fw-bold" onclick="createTeam()">Aggiungi</button>
                                             </div>
                                         </div>
@@ -113,34 +109,13 @@
                         </div>
                     </div>
 
-                    <div class="row g-4">
-                        <div class="col-md-3">
+                    <div class="row g-4" id="group-sections">
+                        <div class="col-md-3" id="group-col-1">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4 class="h6 fw-bold text-primary m-0">GIRONE 1</h4>
                                 <span class="badge bg-primary rounded-pill" id="count-g1">0</span>
                             </div>
                             <div id="list-girone1"></div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4 class="h6 fw-bold text-info m-0">GIRONE 2</h4>
-                                <span class="badge bg-info rounded-pill" id="count-g2">0</span>
-                            </div>
-                            <div id="list-girone2"></div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4 class="h6 fw-bold text-success m-0">GIRONE 3</h4>
-                                <span class="badge bg-success rounded-pill" id="count-g3">0</span>
-                            </div>
-                            <div id="list-girone3"></div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4 class="h6 fw-bold text-warning m-0">GIRONE 4</h4>
-                                <span class="badge bg-warning rounded-pill" id="count-g4">0</span>
-                            </div>
-                            <div id="list-girone4"></div>
                         </div>
                     </div>
                 </div>

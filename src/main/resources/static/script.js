@@ -4,6 +4,17 @@ let allPartite = [];
 let activeTeamId = null;
 let activeMatchId = null;
 
+let activeGroups = [1];
+const groupStyles = {
+    1: 'primary',
+    2: 'info',
+    3: 'success',
+    4: 'warning',
+    5: 'secondary',
+    6: 'dark',
+    7: 'danger'
+};
+
 let isReadonly = false;
 let isLoggedIn = true;
 window.authHeader = null;
@@ -49,6 +60,62 @@ window.onload = async () => {
 };
 
 let activeTab = 'classifica';
+
+function renderGroupSections() {
+    const container = document.getElementById('group-sections');
+    if (!container) return;
+    container.innerHTML = '';
+
+    activeGroups.forEach(g => {
+        const color = groupStyles[g] || 'secondary';
+        container.insertAdjacentHTML('beforeend', `
+            <div class="col-md-3" id="group-col-${g}">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="h6 fw-bold text-${color} m-0">GIRONE ${g}</h4>
+                        ${g > 1 ? `<button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 26px; height: 26px;" onclick="removeGirone(${g})" aria-label="Rimuovi girone">✕</button>` : ''}
+                    </div>
+                    <span class="badge bg-${color} rounded-pill" id="count-g${g}">0</span>
+                </div>
+                <div id="list-girone${g}"></div>
+            </div>
+        `);
+    });
+}
+
+function updateGroupSelectOptions() {
+    const select = document.getElementById('teamGirone');
+    if (!select) return;
+    select.innerHTML = activeGroups
+        .map(g => `<option value="${g}">Girone ${g}</option>`)
+        .join('');
+    if (!activeGroups.includes(parseInt(select.value))) select.value = '1';
+}
+
+function addGirone() {
+    const maxGroup = activeGroups.length > 0 ? Math.max(...activeGroups) : 1;
+    const nextGroup = maxGroup + 1;
+    activeGroups = Array.from(new Set([...activeGroups, nextGroup])).sort((a, b) => a - b);
+    renderGroupSections();
+    updateGroupSelectOptions();
+    showNotify('✅ Girone aggiunto', `Girone ${nextGroup} creato.`, 'success');
+}
+
+function removeGirone(groupNumber) {
+    if (groupNumber === 1) {
+        showNotify('ℹ️ Girone fisso', 'Girone 1 non può essere rimosso.', 'info');
+        return;
+    }
+    const teamsInGroup = teams.filter(t => t.girone === groupNumber);
+    if (teamsInGroup.length > 0) {
+        showNotify('⚠️ Girone non vuoto', `Il girone ${groupNumber} contiene squadre. Sposta o elimina prima le squadre.`, 'warning');
+        return;
+    }
+    activeGroups = activeGroups.filter(g => g !== groupNumber);
+    renderGroupSections();
+    updateGroupSelectOptions();
+    showNotify('✅ Girone rimosso', `Girone ${groupNumber} eliminato.`, 'success');
+}
 
 async function loadTeams() {
     try {
@@ -219,17 +286,23 @@ async function removePlayer(index) {
 // ─── RENDERING ──────────────────────────────────────────────
 
 function renderTeams() {
-    const lists = {
-        1: document.getElementById('list-girone1'),
-        2: document.getElementById('list-girone2'),
-        3: document.getElementById('list-girone3'),
-        4: document.getElementById('list-girone4')
-    };
+    const groupsFound = new Set(activeGroups);
+    teams.forEach(t => {
+        if (Number.isInteger(t.girone) && t.girone >= 1) groupsFound.add(t.girone);
+    });
+    activeGroups = [...groupsFound].sort((a, b) => a - b);
+    renderGroupSections();
+    updateGroupSelectOptions();
+
+    const lists = {};
+    activeGroups.forEach(g => {
+        lists[g] = document.getElementById(`list-girone${g}`);
+    });
     
     // Pulisci liste e contatori
-    Object.keys(lists).forEach(key => {
-        if (lists[key]) lists[key].innerHTML = '';
-        const countElem = document.getElementById(`count-g${key}`);
+    activeGroups.forEach(g => {
+        if (lists[g]) lists[g].innerHTML = '';
+        const countElem = document.getElementById(`count-g${g}`);
         if (countElem) countElem.innerText = '0';
     });
 
@@ -305,19 +378,26 @@ function renderTeams() {
             if (!btn) return;
             const stages = partite.map(p => p.girone);
             const maxStage = partite.length > 0 ? Math.max(...stages) : 0;
+            const activeCount = activeTeams.length;
 
-            if (maxStage === 99) {
-                btn.innerHTML = "🏁 TORNEO CONCLUSO";
-                btn.className = "btn btn-dark btn-lg fw-bold rounded-pill px-5 shadow w-100 disabled";
-            } else if (maxStage === 88 || activeTeams.length === 2) {
-                btn.innerHTML = "🏆 GENERA FINALISSIMA";
-                btn.className = "btn btn-danger btn-lg fw-bold rounded-pill px-5 shadow w-100";
-            } else if (activeTeams.length <= 4) {
-                btn.innerHTML = "🔥 GENERA SEMIFINALI";
-                btn.className = "btn btn-primary btn-lg fw-bold rounded-pill px-5 shadow w-100";
-            } else {
+            if (partite.length === 0) {
                 btn.innerHTML = "🚀 PROSSIMO ROUND";
                 btn.className = "btn btn-warning btn-lg fw-bold rounded-pill px-5 shadow w-100";
+            } else if (maxStage === 99) {
+                btn.innerHTML = "🏁 TORNEO CONCLUSO";
+                btn.className = "btn btn-dark btn-lg fw-bold rounded-pill px-5 shadow w-100 disabled";
+            } else if (maxStage === 88 || activeCount === 2) {
+                btn.innerHTML = "🏆 GENERA FINALISSIMA";
+                btn.className = "btn btn-danger btn-lg fw-bold rounded-pill px-5 shadow w-100";
+            } else if (maxStage === 77 || activeCount <= 4) {
+                btn.innerHTML = "🔥 GENERA SEMIFINALI";
+                btn.className = "btn btn-primary btn-lg fw-bold rounded-pill px-5 shadow w-100";
+            } else if (maxStage === 66 || activeCount <= 8) {
+                btn.innerHTML = "⚡ GENERA QUARTI";
+                btn.className = "btn btn-warning btn-lg fw-bold rounded-pill px-5 shadow w-100";
+            } else {
+                btn.innerHTML = "🎯 GENERA OTTAVI";
+                btn.className = "btn btn-info btn-lg fw-bold rounded-pill px-5 shadow w-100";
             }
         };
 
@@ -389,9 +469,8 @@ async function generateRandomMatches() {
                 showNotify("⚠️ Errore", "Impossibile determinare i 2 finalisti.", "danger");
                 return;
             }
-        } else if (maxStage > 0 || activeTeams.length <= 4) {
+        } else if (maxStage === 77 || activeTeams.length <= 4) {
             // --- FASE: GENERAZIONE SEMIFINALI (88) ---
-            // Se abbiamo già fatto almeno un round di gironi, passiamo alle semifinali con i migliori 4
             const semifinalists = [...activeTeams]
                 .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
                 .slice(0, 4);
@@ -403,9 +482,35 @@ async function generateRandomMatches() {
                 showNotify("⚠️ Squadre insufficienti", "Mancano squadre per le semifinali.", "warning");
                 return;
             }
+        } else if (maxStage === 66 || activeTeams.length <= 8) {
+            // --- FASE: GENERAZIONE QUARTI (77) ---
+            const quarterFinalists = [...activeTeams]
+                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .slice(0, 8);
+            
+            if (quarterFinalists.length >= 2) {
+                await createBalancedMatches(quarterFinalists, 77);
+                generatedAny = true;
+            } else {
+                showNotify("⚠️ Squadre insufficienti", "Mancano squadre per i quarti.", "warning");
+                return;
+            }
+        } else if (maxStage > 0 || activeTeams.length <= 16) {
+            // --- FASE: GENERAZIONE OTTAVI (66) ---
+            const ottaviTeams = [...activeTeams]
+                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .slice(0, 16);
+            
+            if (ottaviTeams.length >= 2) {
+                await createBalancedMatches(ottaviTeams, 66);
+                generatedAny = true;
+            } else {
+                showNotify("⚠️ Squadre insufficienti", "Mancano squadre per gli ottavi.", "warning");
+                return;
+            }
         } else {
-            // --- FASE: GENERAZIONE GIRONI INIZIALI (1-4) ---
-            const gironi = [1, 2, 3, 4];
+            // --- FASE: GENERAZIONE GIRONI INIZIALI ---
+            const gironi = [...new Set(activeGroups)].sort((a, b) => a - b);
             let teamsMatched = new Set();
 
             for (const g of gironi) {
@@ -676,6 +781,15 @@ function renderPartite(partite) {
     document.getElementById('match-count').innerText = `${completed.length} match conclusi`;
     document.getElementById('upcoming-count').innerText = `${upcoming.length} da giocare`;
     
+    const stageLabel = (stage) => {
+        if (stage === 99) return '🏆 Finalissima';
+        if (stage === 88) return '🔥 Semifinale';
+        if (stage === 77) return '⚡ Quarti';
+        if (stage === 66) return '🎯 Ottavi';
+        if (stage === 0) return 'Girone misto';
+        return 'Girone ' + stage;
+    };
+
     // Render Storico
     historyContainer.innerHTML = completed.reverse().map(p => `
         <div class="col-md-6">
@@ -683,7 +797,7 @@ function renderPartite(partite) {
                 <div class="text-center" style="flex: 1;">
                     <div class="fw-bold text-dark">${p.squadra1.nome}</div>
                     <div class="badge bg-light text-muted border">
-                        ${p.girone === 99 ? '🏆 Finalissima' : (p.girone === 88 ? '🔥 Semifinale' : 'Girone ' + p.girone)}
+                        ${stageLabel(p.girone)}
                     </div>
                 </div>
                 <div class="mx-2 d-flex align-items-center">
@@ -694,7 +808,7 @@ function renderPartite(partite) {
                 <div class="text-center" style="flex: 1;">
                     <div class="fw-bold text-dark">${p.squadra2.nome}</div>
                     <div class="badge bg-light text-muted border">
-                        ${p.girone === 99 ? '🏆 Finalissima' : (p.girone === 88 ? '🔥 Semifinale' : 'Girone ' + p.girone)}
+                        ${stageLabel(p.girone)}
                     </div>
                 </div>
             </div>
@@ -719,7 +833,7 @@ function renderPartite(partite) {
         <tr>
             <td>
                 <span class="badge bg-light text-muted border">
-                    ${p.girone === 99 ? '🏆 Finalissima' : (p.girone === 88 ? '🔥 Semifinale' : 'Girone ' + p.girone)}
+                    ${stageLabel(p.girone)}
                 </span>
             </td>
             <td class="text-center">
