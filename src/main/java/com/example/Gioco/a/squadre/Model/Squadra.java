@@ -21,6 +21,7 @@ public class Squadra extends BaseEntity {
     private int punti;
     private int girone;
     private int vittorie;
+    private int pareggi;
     private int sconfitte;
     private int bicchieriFatti;
     private int bicchieriSubiti;

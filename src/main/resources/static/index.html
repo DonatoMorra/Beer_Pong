@@ -24,13 +24,13 @@
                 <div>
                     <div class="eyebrow mb-2">Beer Pong Tournament</div>
                     <h1 class="display-5 fw-black m-0">BEERPONG <span class="text-warning">CHAMPIONS</span></h1>
-                    <p class="lead text-muted mb-0 mt-2">Gestione squadre, risultati, classifica e finale</p>
+                    <p class="lead text-muted mb-0 mt-2">Crea la tua squadra, registra ogni sfida e scopri chi conquisterà il titolo</p>
                 </div>
             </header>
 
             <nav class="navbar navbar-expand-lg navbar-light modern-nav rounded-5 shadow-sm mb-4 mb-lg-5 px-3 px-lg-4 py-3 border">
                 <div class="container-fluid px-0">
-                    <a class="navbar-brand fw-bold fs-4" href="#">🍺 Menu</a>
+                    <a class="navbar-brand fw-bold fs-4" href="#">🍺 Home</a>
                     <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
                         data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Apri menu">
                         <span class="navbar-toggler-icon"></span>
@@ -38,16 +38,16 @@
                     <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
                         <ul class="navbar-nav gap-2 gap-lg-3 align-items-lg-center">
                             <li class="nav-item">
-                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('classifica')">🏆 Classifica</button>
+                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('classifica')">🏆 classification</button>
                             </li>
                             <li class="nav-item">
-                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('live')">⚔️ In campo</button>
+                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('live')">⚔️ In Game</button>
                             </li>
                             <li class="nav-item" id="nav-squadre-container">
-                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('squadre')">👥 Squadre</button>
+                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('squadre')">👥 Squad</button>
                             </li>
                             <li class="nav-item" id="nav-partite-container">
-                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('partite')">🎯 Partite</button>
+                                <button class="nav-link fw-bold btn btn-light rounded-pill px-4" onclick="switchTab('partite')">🎯 Match</button>
                             </li>
                             <li class="nav-item ms-lg-4">
                                 <button id="nav-admin" class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm"
@@ -255,6 +255,17 @@
             <div class="d-flex gap-2">
                 <button class="btn btn-danger w-100 fw-bold" onclick="confirmDeleteAll()">elimina</button>
                 <button class="btn btn-light border w-100" onclick="closeModal('deleteAllModal')">No</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteSingleModal" class="custom-modal" style="display:none;">
+        <div class="modal-dialog-custom p-4 text-center">
+            <h4 class="fw-bold text-danger mb-3">Elimina squadra?</h4>
+            <p class="text-muted small">Stai per eliminare la squadra <strong id="deleteSingleName"></strong>.</p>
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger w-100 fw-bold" onclick="confirmDeleteSingle()">Conferma</button>
+                <button class="btn btn-light border w-100" onclick="closeModal('deleteSingleModal')">Annulla</button>
             </div>
         </div>
     </div>

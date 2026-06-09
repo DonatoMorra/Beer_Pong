@@ -118,6 +118,8 @@ public class SquadreService {
             s2.setPunti(s2.getPunti() + 3);
             s1.setSconfitte(s1.getSconfitte() + 1);
         } else {
+            s1.setPareggi(s1.getPareggi() + 1);
+            s2.setPareggi(s2.getPareggi() + 1);
             s1.setPunti(s1.getPunti() + 1);
             s2.setPunti(s2.getPunti() + 1);
         }

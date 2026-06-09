@@ -169,11 +169,20 @@ async function createTeam() {
 function openDeleteSingleModal(id) {
     activeTeamId = id;
     const team = teams.find(t => t.id === id);
-    document.getElementById('deleteSingleName').innerText = team.nome;
+    if (!team) {
+        showNotify("Errore", "Squadra non trovata.", "danger");
+        return;
+    }
+    const nameLabel = document.getElementById('deleteSingleName');
+    if (nameLabel) nameLabel.innerText = team.nome;
     document.getElementById('deleteSingleModal').style.display = 'flex';
 }
 
 async function confirmDeleteSingle() {
+    if (!activeTeamId) {
+        showNotify("Errore", "Nessuna squadra selezionata.", "danger");
+        return;
+    }
     const response = await fetch(`${API_URL}/${activeTeamId}`, { 
         method: 'DELETE',
         headers: { 'Authorization': window.authHeader || '' }
@@ -440,30 +449,48 @@ async function generateRandomMatches() {
         // LOGICA DI PROGRESSIONE ROBUSTA (State-Machine)
         const stages = currentMatches.map(p => p.girone);
         const maxStage = currentMatches.length > 0 ? Math.max(...stages) : 0;
+        const groupStageMatches = currentMatches.filter(p => p.girone > 0 && p.girone < 80);
+        const eliminationMatches = currentMatches.filter(p => p.girone >= 80);
+        const groupStageIncomplete = groupStageMatches.some(p => !p.giocata);
+
+        if (groupStageIncomplete) {
+            showNotify("⚠️ Partite gironi in corso", "Finisci tutte le partite del girone prima di generare il prossimo round.", "warning");
+            switchTab('live');
+            return;
+        }
 
         if (maxStage === 99) {
             showNotify("🏁 Torneo Concluso", "La finale è già stata disputata!", "info");
             return;
         }
 
-        // Determiniamo se dobbiamo passare alla fase successiva
-        if (activeTeams.length === 2) {
-            // Con due sole squadre attive generiamo direttamente la finalissima.
-            const finalists = [...activeTeams]
-                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
-                .slice(0, 2);
-
-            if (finalists.length === 2) {
-                await createBalancedMatches(finalists, 99);
-                generatedAny = true;
-            } else {
-                showNotify("⚠️ Errore", "Impossibile determinare i 2 finalisti.", "danger");
+        if (groupStageMatches.length === 0 && eliminationMatches.length === 0) {
+            // --- GENERAZIONE PRIMO GIRONE ---
+            const gironi = [...new Set(activeGroups)].sort((a, b) => a - b);
+            for (const g of gironi) {
+                const teamsInGirone = activeTeams.filter(t => t.girone === g);
+                if (teamsInGirone.length >= 2) {
+                    const success = await createGroupRoundRobinMatches(teamsInGirone, g, currentMatches);
+                    if (success) generatedAny = true;
+                }
+            }
+        } else if (groupStageMatches.length > 0 && eliminationMatches.length === 0) {
+            // --- GIRONE COMPLETATO, AVANZANO SOLO VINCE PER GIRONE ---
+            const winners = getGroupWinners();
+            if (winners.length < 2) {
+                showNotify("⚠️ Nessun girone pronto", "Occorre almeno un vincitore di girone per continuare.", "warning");
                 return;
             }
+            let stageCode = 66;
+            if (winners.length === 2) stageCode = 99;
+            else if (winners.length <= 4) stageCode = 88;
+            else if (winners.length <= 8) stageCode = 77;
+            await createBalancedMatches(winners, stageCode);
+            generatedAny = true;
         } else if (maxStage === 88) {
             // --- FASE: GENERAZIONE FINALE (99) ---
             const finalists = [...activeTeams]
-                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
                 .slice(0, 2);
             
             if (finalists.length === 2) {
@@ -476,7 +503,7 @@ async function generateRandomMatches() {
         } else if (maxStage === 77 || activeTeams.length <= 4) {
             // --- FASE: GENERAZIONE SEMIFINALI (88) ---
             const semifinalists = [...activeTeams]
-                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
                 .slice(0, 4);
             
             if (semifinalists.length >= 2) {
@@ -489,7 +516,7 @@ async function generateRandomMatches() {
         } else if (maxStage === 66 || activeTeams.length <= 8) {
             // --- FASE: GENERAZIONE QUARTI (77) ---
             const quarterFinalists = [...activeTeams]
-                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
                 .slice(0, 8);
             
             if (quarterFinalists.length >= 2) {
@@ -502,7 +529,7 @@ async function generateRandomMatches() {
         } else if (maxStage > 0 || activeTeams.length <= 16) {
             // --- FASE: GENERAZIONE OTTAVI (66) ---
             const ottaviTeams = [...activeTeams]
-                .sort((a, b) => (b.vittorie - a.vittorie) || (b.punti - a.punti) || (b.bicchieriFatti - b.bicchieriSubiti))
+                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
                 .slice(0, 16);
             
             if (ottaviTeams.length >= 2) {
@@ -513,27 +540,9 @@ async function generateRandomMatches() {
                 return;
             }
         } else {
-            // --- FASE: GENERAZIONE GIRONI INIZIALI ---
-            const gironi = [...new Set(activeGroups)].sort((a, b) => a - b);
-            let teamsMatched = new Set();
-
-            for (const g of gironi) {
-                const teamsInGirone = activeTeams.filter(t => t.girone === g && !teamsMatched.has(t.id));
-                if (teamsInGirone.length >= 2) {
-                    const success = await createBalancedMatches(teamsInGirone, g);
-                    if (success) {
-                        generatedAny = true;
-                        teamsInGirone.forEach(t => teamsMatched.add(t.id));
-                    }
-                }
-            }
-            
-            // Se rimangono squadre "spaiate" tra i gironi, le accoppiamo in un girone misto (0)
-            const leftoverTeams = activeTeams.filter(t => !teamsMatched.has(t.id));
-            if (leftoverTeams.length >= 2) {
-                const success = await createBalancedMatches(leftoverTeams, 0); // Girone misto
-                if (success) generatedAny = true;
-            }
+            // Fallback: nessuna azione possibile
+            showNotify("ℹ️ Nulla da generare", "Controlla lo stato del torneo e riprova.", "info");
+            return;
         }
 
         if (generatedAny) {
@@ -600,6 +609,57 @@ async function createBalancedMatches(squadre, gironeNum) {
         }
     }
     return created;
+}
+
+async function createGroupRoundRobinMatches(squadre, gironeNum, existingMatches) {
+    let created = false;
+    for (let i = 0; i < squadre.length; i++) {
+        for (let j = i + 1; j < squadre.length; j++) {
+            const s1 = squadre[i];
+            const s2 = squadre[j];
+            const alreadyExists = existingMatches.some(p =>
+                p.girone === gironeNum &&
+                ((p.squadra1.id == s1.id && p.squadra2.id == s2.id) ||
+                 (p.squadra1.id == s2.id && p.squadra2.id == s1.id))
+            );
+            if (alreadyExists) continue;
+
+            const partita = {
+                squadra1: { id: s1.id },
+                squadra2: { id: s2.id },
+                bicchieriSquadra1: 0,
+                bicchieriSquadra2: 0,
+                girone: gironeNum,
+                giocata: false
+            };
+            const response = await fetch(`${API_URL}/partite/nuova`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': window.authHeader || ''
+                },
+                body: JSON.stringify(partita)
+            });
+            if (response.status === 401) {
+                showNotify("🔒 Accesso Negato", "Devi inserire la password admin per generare i match!", "danger");
+                return false;
+            }
+            created = true;
+        }
+    }
+    return created;
+}
+
+function getGroupWinners() {
+    const groupIds = [...new Set(teams.map(t => t.girone))].sort((a, b) => a - b);
+    return groupIds.map(g => {
+        const groupTeams = teams.filter(t => t.girone === g);
+        return groupTeams.sort((a, b) =>
+            (b.punti - a.punti) ||
+            (b.vittorie - a.vittorie) ||
+            ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti))
+        )[0];
+    }).filter(Boolean);
 }
 
 function showNotify(title, message, type = 'info') {
@@ -689,6 +749,7 @@ function renderLeaderboard() {
                         <th>Pos</th>
                         <th>Squadra</th>
                         <th class="text-center">V</th>
+                        <th class="text-center">P</th>
                         <th class="text-center">S</th>
                         <th class="text-center">Cup+</th>
                         <th class="text-center">Cup-</th>
@@ -706,6 +767,7 @@ function renderLeaderboard() {
                 <div class="small text-muted">${t.giocatori.map(p => p.nome).join(', ')}</div>
             </td>
             <td class="text-center">${t.vittorie || 0}</td>
+            <td class="text-center">${t.pareggi || 0}</td>
             <td class="text-center">${t.sconfitte || 0}</td>
             <td class="text-center text-success">${t.bicchieriFatti || 0}</td>
             <td class="text-center text-danger">${t.bicchieriSubiti || 0}</td>
@@ -905,19 +967,11 @@ async function saveMatch() {
         return;
     }
 
-    // GESTIONE PAREGGI IN FASI FINALI
-    if (b1 === b2 && (activeMatchId)) {
-        const currentMatch = allPartite.find(p => p.id === activeMatchId);
-        if (currentMatch && (currentMatch.girone === 88 || currentMatch.girone === 99)) {
-            showNotify("🚫 Pareggio non ammesso", "Nelle fasi finali deve esserci un vincitore! Continuate a giocare finché una squadra non segna un punto in più.", "danger");
-            return;
-        }
-    }
-
     const team1 = teams.find(t => t.id == s1Id);
+    const currentMatch = allPartite.find(p => p.id === activeMatchId);
 
     const activeTeams = teams.filter(t => t.sconfitte < 2);
-    let finalGirone = team1.girone;
+    let finalGirone = currentMatch ? currentMatch.girone : team1.girone;
     if (activeTeams.length === 2) finalGirone = 99; // Forza girone 99 (Finalissima) quando restano in 2
 
     const partita = {
