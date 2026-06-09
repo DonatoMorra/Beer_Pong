@@ -1,25 +1,21 @@
 package com.example.Gioco.a.squadre.Service;
 
-import com.example.Gioco.a.squadre.Model.Squadra;
-import com.example.Gioco.a.squadre.Model.Utente;
-import com.example.Gioco.a.squadre.Repository.SquadreRepository;
-import com.example.Gioco.a.squadre.Repository.UtenteRepository;
+import java.util.List;
 
-import lombok.RequiredArgsConstructor;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import com.example.Gioco.a.squadre.Model.Squadra;
+import com.example.Gioco.a.squadre.Model.Utente;
+import com.example.Gioco.a.squadre.Repository.SquadreRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class SquadreService {
 
     private final SquadreRepository squadreRepository;
-    private final UtenteRepository utenteRepository;
     private final com.example.Gioco.a.squadre.Repository.PartitaRepository partitaRepository;
 
     // 1. Recupera tutte le squadre (per la dashboard e classifica)
@@ -88,7 +84,8 @@ public class SquadreService {
     // --- GESTIONE PARTITE ---
 
     @Transactional
-    public com.example.Gioco.a.squadre.Model.Partita registraPartita(com.example.Gioco.a.squadre.Model.Partita partita) {
+    public com.example.Gioco.a.squadre.Model.Partita registraPartita(
+            com.example.Gioco.a.squadre.Model.Partita partita) {
         com.example.Gioco.a.squadre.Model.Partita pToSave;
         if (partita.getId() != null) {
             pToSave = partitaRepository.findById(partita.getId()).orElse(partita);
@@ -98,7 +95,7 @@ public class SquadreService {
 
         Squadra s1 = squadreRepository.findById(pToSave.getSquadra1().getId()).orElseThrow();
         Squadra s2 = squadreRepository.findById(pToSave.getSquadra2().getId()).orElseThrow();
-        
+
         pToSave.setSquadra1(s1);
         pToSave.setSquadra2(s2);
         pToSave.setBicchieriSquadra1(partita.getBicchieriSquadra1());

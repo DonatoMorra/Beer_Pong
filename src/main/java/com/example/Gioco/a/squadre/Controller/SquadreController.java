@@ -3,6 +3,7 @@ package com.example.Gioco.a.squadre.Controller;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,8 @@ public class SquadreController {
             return hostIp;
         }
         try {
-            java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface.getNetworkInterfaces();
+            java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface
+                    .getNetworkInterfaces();
             while (interfaces.hasMoreElements()) {
                 java.net.NetworkInterface networkInterface = interfaces.nextElement();
                 if (!networkInterface.isUp() || networkInterface.isLoopback() || networkInterface.isVirtual()) {
@@ -66,7 +68,7 @@ public class SquadreController {
             }
 
             return java.net.InetAddress.getLocalHost().getHostAddress();
-        } catch (Exception e) {
+        } catch (IOException e) {
             return "localhost";
         }
     }
@@ -95,7 +97,7 @@ public class SquadreController {
                     .body(outputStream.toByteArray());
         } catch (WriterException e) {
             return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
+        } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }
     }
