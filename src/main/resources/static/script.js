@@ -98,6 +98,8 @@ function addGirone() {
     activeGroups = Array.from(new Set([...activeGroups, nextGroup])).sort((a, b) => a - b);
     renderGroupSections();
     updateGroupSelectOptions();
+    // Ripopola liste squadre per nuovo DOM dei gironi
+    renderTeams();
     showNotify('✅ Girone aggiunto', `Girone ${nextGroup} creato.`, 'success');
 }
 
@@ -114,6 +116,8 @@ function removeGirone(groupNumber) {
     activeGroups = activeGroups.filter(g => g !== groupNumber);
     renderGroupSections();
     updateGroupSelectOptions();
+    // Ripopola liste squadre dopo rimozione
+    renderTeams();
     showNotify('✅ Girone rimosso', `Girone ${groupNumber} eliminato.`, 'success');
 }
 
