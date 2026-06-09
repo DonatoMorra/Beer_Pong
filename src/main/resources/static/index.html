@@ -202,14 +202,18 @@
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <h4 class="h5 fw-bold m-0">Prossime partite</h4>
+                        <div>
+                            <h4 class="h5 fw-bold m-0">Dashboard gironi</h4>
+                            <p class="text-muted small mb-0">Ogni girone è una card autonoma. Vedi prossime partite, avanzamento e stato senza cambiare vista.</p>
+                        </div>
                         <div class="d-flex gap-2 align-items-center">
                             <button class="btn btn-warning btn-sm fw-bold px-3 shadow-sm" id="btnNextRound"
                                 onclick="generateRandomMatches()">🚀 Prossimo round</button>
                             <span class="badge bg-secondary rounded-pill d-flex align-items-center" id="upcoming-count">0</span>
                         </div>
                     </div>
-                    <div id="upcoming-list" class="row g-3 mb-5"></div>
+                    <div id="upcoming-list" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5"></div>
+                    <div id="schedule-list" class="row g-4 mb-5"></div>
 
                     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                         <h4 class="h5 fw-bold m-0">Storico partite</h4>

@@ -18,8 +18,13 @@ const groupStyles = {
 let isReadonly = false;
 let isLoggedIn = true;
 window.authHeader = null;
+let lastSelectedGroup = 1;
 
 window.onload = async () => {
+    const storedGroup = parseInt(localStorage.getItem('lastSelectedGroup'));
+    if (Number.isInteger(storedGroup) && storedGroup >= 1) {
+        lastSelectedGroup = storedGroup;
+    }
     // Carica IP server per QR Code
     try {
         const ipRes = await fetch(`${API_URL}/ip`);
@@ -89,7 +94,18 @@ function updateGroupSelectOptions() {
     select.innerHTML = activeGroups
         .map(g => `<option value="${g}">Girone ${g}</option>`)
         .join('');
-    if (!activeGroups.includes(parseInt(select.value))) select.value = '1';
+
+    if (!activeGroups.includes(lastSelectedGroup)) {
+        lastSelectedGroup = activeGroups[0] || 1;
+    }
+    select.value = lastSelectedGroup;
+    select.onchange = () => {
+        const selected = parseInt(select.value);
+        if (Number.isInteger(selected)) {
+            lastSelectedGroup = selected;
+            localStorage.setItem('lastSelectedGroup', selected);
+        }
+    };
 }
 
 function addGirone() {
@@ -140,10 +156,16 @@ async function createTeam() {
     const name = input.value.trim();
     if (!name) return;
 
+    const selectedGirone = parseInt(gironeSelect.value);
+    if (Number.isInteger(selectedGirone)) {
+        lastSelectedGroup = selectedGirone;
+        localStorage.setItem('lastSelectedGroup', selectedGirone);
+    }
+
     const newTeam = {
         nome: name,
         punti: 0,
-        girone: parseInt(gironeSelect.value),
+        girone: selectedGirone,
         giocatori: []
     };
 
@@ -304,6 +326,9 @@ function renderTeams() {
         if (Number.isInteger(t.girone) && t.girone >= 1) groupsFound.add(t.girone);
     });
     activeGroups = [...groupsFound].sort((a, b) => a - b);
+    if (!activeGroups.includes(lastSelectedGroup)) {
+        lastSelectedGroup = activeGroups[0] || 1;
+    }
     renderGroupSections();
     updateGroupSelectOptions();
 
@@ -573,13 +598,11 @@ async function createBalancedMatches(squadre, gironeNum) {
             const s1 = shuffled[i];
             const s2 = shuffled[i+1];
 
-            // Controllo duplicati: hanno già giocato tra loro?
             const alreadyPlayed = allPartite.some(p => 
                 (p.squadra1.id == s1.id && p.squadra2.id == s2.id) ||
                 (p.squadra1.id == s2.id && p.squadra2.id == s1.id)
             );
 
-            // In semifinale e finale ignoriamo il controllo duplicati (devono giocare!)
             if (alreadyPlayed && gironeNum < 80) {
                 console.log(`Salto match già giocato: ${s1.nome} vs ${s2.nome}`);
                 continue;
@@ -591,6 +614,7 @@ async function createBalancedMatches(squadre, gironeNum) {
                 bicchieriSquadra1: 0,
                 bicchieriSquadra2: 0,
                 girone: gironeNum,
+                turno: 1,
                 giocata: false
             };
             const response = await fetch(`${API_URL}/partite/nuova`, {
@@ -611,14 +635,47 @@ async function createBalancedMatches(squadre, gironeNum) {
     return created;
 }
 
+function buildRoundRobinTurns(squadre) {
+    const teams = [...squadre];
+    const hasBye = teams.length % 2 !== 0;
+    if (hasBye) {
+        teams.push({ id: null, nome: 'Bye' });
+    }
+
+    const rounds = [];
+    const count = teams.length;
+    const fixed = teams[0];
+    const rotating = teams.slice(1);
+
+    for (let round = 0; round < count - 1; round++) {
+        const current = [fixed, ...rotating];
+        const matches = [];
+
+        for (let i = 0; i < count / 2; i++) {
+            const teamA = current[i];
+            const teamB = current[count - 1 - i];
+            if (!teamA.id || !teamB.id) continue;
+            matches.push({ squadra1: teamA, squadra2: teamB, turno: round + 1 });
+        }
+
+        rounds.push(matches);
+        rotating.unshift(rotating.pop());
+    }
+
+    return rounds;
+}
+
 async function createGroupRoundRobinMatches(squadre, gironeNum, existingMatches) {
     let created = false;
-    for (let i = 0; i < squadre.length; i++) {
-        for (let j = i + 1; j < squadre.length; j++) {
-            const s1 = squadre[i];
-            const s2 = squadre[j];
+    const rounds = buildRoundRobinTurns(squadre);
+
+    for (const matches of rounds) {
+        for (const m of matches) {
+            const s1 = m.squadra1;
+            const s2 = m.squadra2;
             const alreadyExists = existingMatches.some(p =>
                 p.girone === gironeNum &&
+                p.turno === m.turno &&
                 ((p.squadra1.id == s1.id && p.squadra2.id == s2.id) ||
                  (p.squadra1.id == s2.id && p.squadra2.id == s1.id))
             );
@@ -630,6 +687,7 @@ async function createGroupRoundRobinMatches(squadre, gironeNum, existingMatches)
                 bicchieriSquadra1: 0,
                 bicchieriSquadra2: 0,
                 girone: gironeNum,
+                turno: m.turno,
                 giocata: false
             };
             const response = await fetch(`${API_URL}/partite/nuova`, {
@@ -650,16 +708,56 @@ async function createGroupRoundRobinMatches(squadre, gironeNum, existingMatches)
     return created;
 }
 
-function getGroupWinners() {
-    const groupIds = [...new Set(teams.map(t => t.girone))].sort((a, b) => a - b);
-    return groupIds.map(g => {
-        const groupTeams = teams.filter(t => t.girone === g);
-        return groupTeams.sort((a, b) =>
+function getGroupStandingsForGroup(groupId) {
+    return teams
+        .filter(t => t.girone === groupId)
+        .sort((a, b) =>
             (b.punti - a.punti) ||
             (b.vittorie - a.vittorie) ||
             ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti))
-        )[0];
-    }).filter(Boolean);
+        );
+}
+
+function getGroupWinners() {
+    const groupIds = [...new Set(teams
+        .filter(t => Number.isInteger(t.girone) && t.girone > 0 && t.girone < 80)
+        .map(t => t.girone))].sort((a, b) => a - b);
+
+    return groupIds.flatMap(g => getGroupStandingsForGroup(g).slice(0, 2)).filter(Boolean);
+}
+
+function getQualifiedTeams() {
+    const groupIds = [...new Set(teams
+        .filter(t => Number.isInteger(t.girone) && t.girone > 0 && t.girone < 80)
+        .map(t => t.girone))].sort((a, b) => a - b);
+    return groupIds.map(g => ({
+        girone: g,
+        qualifiers: getGroupStandingsForGroup(g).slice(0, 2)
+    }));
+}
+
+function renderQualifiedOverview(groupIds) {
+    const qualifiedGroups = getQualifiedTeams();
+    const rows = qualifiedGroups.map(group => {
+        const names = group.qualifiers.map(t => t.nome).join(' / ') || 'Nessuno';
+        return `<li class="mb-2"><strong>Girone ${group.girone}:</strong> ${names}</li>`;
+    }).join('');
+
+    return `
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="text-uppercase text-muted small fw-bold mb-1">Panoramica qualificati</div>
+                    <h3 class="h5 fw-bold mb-2">Tutti i gironi completati</h3>
+                    <p class="text-muted small mb-3">Seleziona la fase a eliminazione diretta e genera automaticamente i match in base ai migliori classificati.</p>
+                </div>
+                <button class="btn btn-warning btn-sm fw-bold rounded-pill px-4" onclick="generateRandomMatches()">Genera fase eliminazione</button>
+            </div>
+            <ul class="list-unstyled mt-4 mb-0 text-dark small">${rows}</ul>
+        </div>
+    </div>
+    `;
 }
 
 function showNotify(title, message, type = 'info') {
@@ -840,13 +938,12 @@ async function loadPartite() {
 function renderPartite(partite) {
     const upcomingContainer = document.getElementById('upcoming-list');
     const historyContainer = document.getElementById('match-list');
-    
     const completed = partite.filter(p => p.giocata);
     const upcoming = partite.filter(p => !p.giocata);
-    
+
     document.getElementById('match-count').innerText = `${completed.length} match conclusi`;
-    document.getElementById('upcoming-count').innerText = `${upcoming.length} da giocare`;
-    
+    document.getElementById('upcoming-count').innerText = `${upcoming.length} partite attive`;
+
     const stageLabel = (stage) => {
         if (stage === 99) return '🏆 Finalissima';
         if (stage === 88) return '🔥 Semifinale';
@@ -856,7 +953,201 @@ function renderPartite(partite) {
         return 'Girone ' + stage;
     };
 
-    // Render Storico
+    const stageBadgeClass = (stage) => {
+        if (stage === 99) return 'bg-danger text-white';
+        if (stage === 88) return 'bg-primary text-white';
+        if (stage === 77) return 'bg-warning text-dark';
+        if (stage === 66) return 'bg-info text-dark';
+        return 'bg-secondary text-white';
+    };
+
+    const groupPhaseMatches = partite.filter(p => p.girone > 0 && p.girone < 80);
+    const eliminationMatches = partite.filter(p => p.girone >= 80 && !p.giocata);
+    const groupIds = [...new Set(groupPhaseMatches.map(p => p.girone))].sort((a, b) => a - b);
+
+    const activeGroupCards = [];
+    const summaryGroupCards = [];
+
+    groupIds.forEach(g => {
+        const allMatches = groupPhaseMatches.filter(p => p.girone === g).sort((a, b) => a.id - b.id);
+        const todoMatches = allMatches.filter(p => !p.giocata);
+        const playedMatches = allMatches.filter(p => p.giocata);
+        const progress = allMatches.length ? Math.round((playedMatches.length / allMatches.length) * 100) : 0;
+
+        if (todoMatches.length > 0) {
+            const nextMatch = todoMatches[0];
+            activeGroupCards.push(`
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-3 gap-3">
+                                <div>
+                                    <div class="text-uppercase text-muted small fw-bold mb-1">${stageLabel(g)}</div>
+                                    <h3 class="h5 fw-bold mb-1">Girone ${g}</h3>
+                                </div>
+                                <span class="badge ${stageBadgeClass(g)} rounded-pill py-2 px-3">In corso</span>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small mb-2">Avanzamento</div>
+                                <div class="progress rounded-pill" style="height: 10px;">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: ${progress}%" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-2 small text-muted">
+                                    <span>${playedMatches.length}/${allMatches.length} giocate</span>
+                                    <span>${progress}%</span>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="text-muted small mb-2">Prossima partita</div>
+                                <div class="fw-semibold">${nextMatch.squadra1.nome} <span class="text-warning">VS</span> ${nextMatch.squadra2.nome}</div>
+                                <div class="text-muted small mt-1">Partita ${playedMatches.length + 1} di ${allMatches.length}</div>
+                            </div>
+                            <div class="mt-auto d-flex justify-content-between align-items-center gap-3">
+                                <div>
+                                    <div class="text-muted small">Stato</div>
+                                    <div class="fw-bold">${todoMatches.length} partite rimanenti</div>
+                                </div>
+                                <button class="btn btn-sm btn-dark rounded-pill px-3" onclick="prepareMatchResult('${nextMatch.squadra1.id}', '${nextMatch.squadra2.id}', ${nextMatch.id})">🎯 Registra match</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+        } else {
+            const standings = getGroupStandingsForGroup(g);
+            const first = standings[0] || { nome: 'N/D' };
+            const second = standings[1] || { nome: 'N/D' };
+            const qualifiers = standings.slice(0, 2).map(t => t.nome).join(' / ') || 'Nessuno';
+            summaryGroupCards.push(`
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden bg-light bg-opacity-75">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-3 gap-3">
+                                <div>
+                                    <div class="text-uppercase text-muted small fw-bold mb-1">${stageLabel(g)}</div>
+                                    <h3 class="h5 fw-bold mb-1">Girone ${g} completato</h3>
+                                </div>
+                                <span class="badge bg-success text-white rounded-pill py-2 px-3">Completato</span>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small mb-2">Classifica finale</div>
+                                <div class="fw-semibold">1° ${first.nome}</div>
+                                <div class="fw-semibold">2° ${second.nome}</div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="text-muted small mb-2">Qualificati</div>
+                                <div class="fw-bold">${qualifiers}</div>
+                            </div>
+                            <div class="mt-auto">
+                                <div class="text-muted small">Partite giocate: ${allMatches.length}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+        }
+    });
+
+    const allGroupsCompleted = groupIds.length > 0 && activeGroupCards.length === 0;
+    const eliminationCards = eliminationMatches.map(p => `
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-3 gap-3">
+                        <div>
+                            <div class="text-uppercase text-muted small fw-bold mb-1">${stageLabel(p.girone)}</div>
+                            <h3 class="h6 fw-bold mb-1">${p.squadra1.nome} vs ${p.squadra2.nome}</h3>
+                        </div>
+                        <span class="badge ${stageBadgeClass(p.girone)} rounded-pill py-2 px-3">Eliminazione</span>
+                    </div>
+                    <div class="mb-4">
+                        <div class="text-muted small mb-2">Prossima partita</div>
+                        <div class="fw-semibold">${p.squadra1.nome} <span class="text-warning">VS</span> ${p.squadra2.nome}</div>
+                    </div>
+                    <div class="mt-auto text-end">
+                        <button class="btn btn-sm btn-dark rounded-pill px-3" onclick="prepareMatchResult('${p.squadra1.id}', '${p.squadra2.id}', ${p.id})">🎯 Registra match</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    const allCards = [...activeGroupCards, ...summaryGroupCards];
+    let output = allCards.join('');
+    if (eliminationCards) {
+        output += eliminationCards;
+    }
+    if (!output) {
+        output = '<div class="col-12"><div class="p-4 border rounded-4 bg-white shadow-sm text-center text-muted">Nessuna partita da giocare. Genera prima le partite del torneo.</div></div>';
+    }
+    if (allGroupsCompleted && !eliminationCards) {
+        output += renderQualifiedOverview(groupIds);
+    }
+
+    upcomingContainer.innerHTML = output;
+
+    const scheduleContainer = document.getElementById('schedule-list');
+    const maxTurno = groupPhaseMatches.length ? Math.max(...groupPhaseMatches.map(p => p.turno || 1)) : 0;
+    const scheduleSections = [];
+
+    for (let turno = 1; turno <= maxTurno; turno++) {
+        groupIds.forEach(g => {
+            const roundMatches = groupPhaseMatches
+                .filter(p => p.girone === g && (p.turno || 1) === turno)
+                .sort((a, b) => a.id - b.id);
+            if (!roundMatches.length) return;
+
+            const listItems = roundMatches.map(p => `
+                <li class="list-group-item d-flex justify-content-between align-items-center border-0 border-bottom py-2 px-0">
+                    <div>
+                        <span class="fw-bold">${p.squadra1.nome}</span>
+                        <span class="text-muted mx-2">vs</span>
+                        <span class="fw-bold">${p.squadra2.nome}</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-dark rounded-pill" onclick="prepareMatchResult('${p.squadra1.id}', '${p.squadra2.id}', ${p.id})">Registra</button>
+                </li>
+            `).join('');
+
+            scheduleSections.push(`
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 bg-white">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <div class="text-uppercase text-muted small fw-bold">Partita ${turno}</div>
+                                    <h5 class="fw-bold mb-0">Girone ${g}</h5>
+                                </div>
+                                <span class="badge ${stageBadgeClass(g)} rounded-pill py-2 px-3">Turno</span>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                ${listItems}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+    }
+
+    const eliminationSchedule = eliminationMatches.map(p => `
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 bg-white">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <div class="text-uppercase text-muted small fw-bold">${stageLabel(p.girone)}</div>
+                            <h5 class="fw-bold mb-0">${p.squadra1.nome} vs ${p.squadra2.nome}</h5>
+                        </div>
+                        <span class="badge ${stageBadgeClass(p.girone)} rounded-pill py-2 px-3">Eliminazione</span>
+                    </div>
+                    <button class="btn btn-sm btn-dark rounded-pill" onclick="prepareMatchResult('${p.squadra1.id}', '${p.squadra2.id}', ${p.id})">Registra risultato</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    scheduleContainer.innerHTML = [...scheduleSections, eliminationSchedule].join('') || '<div class="col-12"><div class="p-4 border rounded-4 bg-white shadow-sm text-center text-muted">Nessuna programmazione disponibile.</div></div>';
+
     historyContainer.innerHTML = completed.reverse().map(p => `
         <div class="col-md-6">
             <div class="p-3 border rounded-4 bg-white shadow-sm d-flex justify-content-between align-items-center">
@@ -880,46 +1171,6 @@ function renderPartite(partite) {
             </div>
         </div>
     `).join('') || '<div class="col-12"><p class="text-center text-muted">Nessun match concluso</p></div>';
-
-    // Render Prossime
-    let upcomingHtml = `
-        <div class="table-responsive bg-white rounded-5 shadow-sm p-2">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Fase</th>
-                        <th class="text-center">Scontro Diretto</th>
-                        <th class="text-end">Azione</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    upcomingHtml += upcoming.map(p => `
-        <tr>
-            <td>
-                <span class="badge bg-light text-muted border">
-                    ${stageLabel(p.girone)}
-                </span>
-            </td>
-            <td class="text-center">
-                <div class="d-flex justify-content-center align-items-center gap-3">
-                    <span class="fw-bold">${p.squadra1.nome}</span>
-                    <span class="text-warning small fw-bold">VS</span>
-                    <span class="fw-bold">${p.squadra2.nome}</span>
-                </div>
-            </td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-dark px-3 rounded-pill" onclick="prepareMatchResult('${p.squadra1.id}', '${p.squadra2.id}', ${p.id})">
-                    🎯 Registra
-                </button>
-            </td>
-        </tr>
-    `).join('');
-
-    upcomingHtml += `</tbody></table></div>`;
-    
-    upcomingContainer.innerHTML = upcoming.length > 0 ? upcomingHtml : '<div class="col-12"><p class="text-center text-muted">Tutte le partite sono state giocate!</p></div>';
 }
 
 function prepareMatchResult(s1Id, s2Id, matchId) {

@@ -19,6 +19,7 @@ public class Partita extends BaseEntity {
     private int bicchieriSquadra2;
 
     private int girone;
+    private int turno = 1;
     private boolean giocata = false;
 
     @ManyToOne
