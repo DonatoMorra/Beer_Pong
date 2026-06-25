@@ -122,6 +122,21 @@ public class SquadreController {
         squadreService.updatePunti(id, punti);
     }
 
+    @PutMapping("/{id}/girone")
+    public void updateGirone(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        if (body == null || !body.containsKey("girone")) {
+            throw new IllegalArgumentException("Field 'girone' is required.");
+        }
+        Object gironeValue = body.get("girone");
+        int girone;
+        if (gironeValue instanceof Number) {
+            girone = ((Number) gironeValue).intValue();
+        } else {
+            girone = Integer.parseInt(gironeValue.toString());
+        }
+        squadreService.updateGirone(id, girone);
+    }
+
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         squadreService.delete(id);

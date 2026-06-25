@@ -102,6 +102,7 @@
                                         </div>
                                         <div class="col-md-4 text-md-end pt-3 pt-md-4" id="initial-gen-container">
                                             <button class="btn btn-success fw-bold w-100" onclick="generateRandomMatches()">🎲 Avvia torneo</button>
+                                        <button class="btn btn-outline-primary fw-bold w-100 mt-2" onclick="distribuisciSquadre()">📍 Distribuisci Squadre</button>
                                         </div>
                                     </div>
                                 </div>
@@ -230,7 +231,7 @@
             <h4 class="fw-bold mb-1">Squadra: <span id="playerModalTeamName" class="text-primary"></span></h4>
             <div id="playerList" class="my-3 list-group border rounded-3"></div>
             <div class="input-group mb-3">
-                <input type="text" id="playerNameInput" class="form-control" placeholder="Nuovo utente...">
+                <input type="text" id="playerNameInput" class="form-control" placeholder="Nuovo utente..." onkeydown="if(event.key==='Enter') addPlayer()">
                 <button class="btn btn-dark" onclick="addPlayer()">Aggiungi</button>
             </div>
             <button class="btn btn-outline-secondary w-100" onclick="closeModal('playerModal')">Chiudi</button>
@@ -240,7 +241,7 @@
     <div id="pointsModal" class="custom-modal" style="display:none;">
         <div class="modal-dialog-custom p-4">
             <h4 class="fw-bold mb-3 text-center">🎯 Aggiorna punti</h4>
-            <input type="number" id="pointsInput" class="form-control form-control-lg mb-4 text-center fw-bold">
+            <input type="number" id="pointsInput" class="form-control form-control-lg mb-4 text-center fw-bold" onkeydown="if(event.key==='Enter') confirmPoints()">
             <div class="d-flex gap-2">
                 <button class="btn btn-primary w-100 fw-bold" onclick="confirmPoints()">Salva</button>
                 <button class="btn btn-light border w-100" onclick="closeModal('pointsModal')">Annulla</button>
@@ -254,7 +255,7 @@
             <p class="text-muted small">Questa azione cancellerà tutte le squadre dal database.</p>
             <div class="mb-3">
                 <input type="password" id="deleteAllCode" class="form-control form-control-lg text-center fw-bold"
-                    placeholder="Codice di conferma">
+                    placeholder="Codice di conferma" onkeydown="if(event.key==='Enter') confirmDeleteAll()">
             </div>
             <div class="d-flex gap-2">
                 <button class="btn btn-danger w-100 fw-bold" onclick="confirmDeleteAll()">elimina</button>

@@ -41,6 +41,15 @@ public class SquadreService {
         });
     }
 
+    // 3b. Aggiorna il girone di una squadra
+    @Transactional
+    public void updateGirone(Long id, int girone) {
+        squadreRepository.findById(id).ifPresent(squadra -> {
+            squadra.setGirone(girone);
+            squadreRepository.save(squadra);
+        });
+    }
+
     // 4. Elimina una singola squadra
     @Transactional
     public void delete(Long id) {
@@ -132,9 +141,13 @@ public class SquadreService {
     @Transactional
     public com.example.Gioco.a.squadre.Model.Partita savePartita(com.example.Gioco.a.squadre.Model.Partita p) {
         Squadra s1 = squadreRepository.findById(p.getSquadra1().getId()).orElseThrow();
-        Squadra s2 = squadreRepository.findById(p.getSquadra2().getId()).orElseThrow();
         p.setSquadra1(s1);
-        p.setSquadra2(s2);
+        if (p.getSquadra2() != null && p.getSquadra2().getId() != null) {
+            Squadra s2 = squadreRepository.findById(p.getSquadra2().getId()).orElseThrow();
+            p.setSquadra2(s2);
+        } else {
+            p.setSquadra2(null);
+        }
         return partitaRepository.save(p);
     }
 

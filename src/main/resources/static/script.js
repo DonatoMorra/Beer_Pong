@@ -184,6 +184,7 @@ async function createTeam() {
     }
 
     input.value = '';
+    input.focus();
     loadTeams();
 }
 
@@ -433,6 +434,9 @@ function renderTeams() {
             } else if (maxStage === 66 || activeCount <= 8) {
                 btn.innerHTML = "⚡ GENERA QUARTI";
                 btn.className = "btn btn-warning btn-lg fw-bold rounded-pill px-5 shadow w-100";
+            } else if (partite.some(p => p.girone > 0 && p.girone < 66) && !partite.some(p => p.girone >= 66)) {
+                btn.innerHTML = "🎯 GENERA ELIMINATORIE";
+                btn.className = "btn btn-info btn-lg fw-bold rounded-pill px-5 shadow w-100";
             } else {
                 btn.innerHTML = "🎯 GENERA OTTAVI";
                 btn.className = "btn btn-info btn-lg fw-bold rounded-pill px-5 shadow w-100";
@@ -464,6 +468,11 @@ async function generateRandomMatches() {
         }
 
         const activeTeams = teams.filter(t => t.sconfitte < 2);
+        const groupValidationError = validateTournamentGroups();
+        if (groupValidationError) {
+            showNotify("⚠️ Controlla i gironi", groupValidationError, "warning");
+            return;
+        }
         if (activeTeams.length < 2) {
             showNotify("⚠️ Squadre insufficienti", "Servono almeno 2 squadre per continuare!", "warning");
             return;
@@ -474,12 +483,19 @@ async function generateRandomMatches() {
         // LOGICA DI PROGRESSIONE ROBUSTA (State-Machine)
         const stages = currentMatches.map(p => p.girone);
         const maxStage = currentMatches.length > 0 ? Math.max(...stages) : 0;
-        const groupStageMatches = currentMatches.filter(p => p.girone > 0 && p.girone < 80);
-        const eliminationMatches = currentMatches.filter(p => p.girone >= 80);
+        const groupStageMatches = currentMatches.filter(p => p.girone > 0 && p.girone < 66);
+        const eliminationMatches = currentMatches.filter(p => p.girone >= 66);
         const groupStageIncomplete = groupStageMatches.some(p => !p.giocata);
+        const eliminationStageIncomplete = eliminationMatches.some(p => !p.giocata);
 
         if (groupStageIncomplete) {
             showNotify("⚠️ Partite gironi in corso", "Finisci tutte le partite del girone prima di generare il prossimo round.", "warning");
+            switchTab('live');
+            return;
+        }
+
+        if (eliminationStageIncomplete) {
+            showNotify("⚠️ Partite ad eliminazione diretta in corso", "Finisci prima tutte le partite ad eliminazione diretta.", "warning");
             switchTab('live');
             return;
         }
@@ -500,72 +516,47 @@ async function generateRandomMatches() {
                 }
             }
         } else if (groupStageMatches.length > 0 && eliminationMatches.length === 0) {
-            // --- GIRONE COMPLETATO, AVANZANO SOLO VINCE PER GIRONE ---
+            // --- PASSAGGIO ALLA FASE AD ELIMINAZIONE DIRETTA ---
             const winners = getGroupWinners();
             if (winners.length < 2) {
                 showNotify("⚠️ Nessun girone pronto", "Occorre almeno un vincitore di girone per continuare.", "warning");
                 return;
             }
-            let stageCode = 66;
-            if (winners.length === 2) stageCode = 99;
-            else if (winners.length <= 4) stageCode = 88;
-            else if (winners.length <= 8) stageCode = 77;
-            await createBalancedMatches(winners, stageCode);
+
+            const bracketSize = getBracketSize(winners.length);
+            const stageCode = getStageCodeForSize(bracketSize);
+            const qualified = getTopRankedTeams(winners, bracketSize);
+
+            if (qualified.length < 2) {
+                showNotify("⚠️ Impossibile creare fase finale", "Non ci sono abbastanza squadre qualificate.", "warning");
+                return;
+            }
+
+            await createBalancedMatches(qualified, stageCode);
             generatedAny = true;
-        } else if (maxStage === 88) {
-            // --- FASE: GENERAZIONE FINALE (99) ---
-            const finalists = [...activeTeams]
-                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
-                .slice(0, 2);
-            
-            if (finalists.length === 2) {
-                await createBalancedMatches(finalists, 99);
-                generatedAny = true;
-            } else {
-                showNotify("⚠️ Errore", "Impossibile determinare i 2 finalisti.", "danger");
+        } else if (eliminationMatches.length > 0) {
+            const nextStageMap = { 66: 77, 77: 88, 88: 99 };
+            const nextStageCode = nextStageMap[maxStage];
+            if (!nextStageCode) {
+                showNotify("⚠️ Impossibile avanzare", "Lo stato attuale non corrisponde a una fase ad eliminazione valida.", "warning");
                 return;
             }
-        } else if (maxStage === 77 || activeTeams.length <= 4) {
-            // --- FASE: GENERAZIONE SEMIFINALI (88) ---
-            const semifinalists = [...activeTeams]
-                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
-                .slice(0, 4);
-            
-            if (semifinalists.length >= 2) {
-                await createBalancedMatches(semifinalists, 88);
-                generatedAny = true;
-            } else {
-                showNotify("⚠️ Squadre insufficienti", "Mancano squadre per le semifinali.", "warning");
+
+            const winners = getEliminationWinners(maxStage);
+            const bracketSize = getBracketSize(winners.length);
+            if (bracketSize !== winners.length) {
+                showNotify("⚠️ Numero vincitori non valido", "La fase precedente non ha prodotto un numero di vincitori compatibile.", "warning");
                 return;
             }
-        } else if (maxStage === 66 || activeTeams.length <= 8) {
-            // --- FASE: GENERAZIONE QUARTI (77) ---
-            const quarterFinalists = [...activeTeams]
-                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
-                .slice(0, 8);
-            
-            if (quarterFinalists.length >= 2) {
-                await createBalancedMatches(quarterFinalists, 77);
-                generatedAny = true;
-            } else {
-                showNotify("⚠️ Squadre insufficienti", "Mancano squadre per i quarti.", "warning");
+
+            if (winners.length < 2) {
+                showNotify("⚠️ Nessun vincitore disponibile", "Non ci sono abbastanza vincitori per la fase successiva.", "warning");
                 return;
             }
-        } else if (maxStage > 0 || activeTeams.length <= 16) {
-            // --- FASE: GENERAZIONE OTTAVI (66) ---
-            const ottaviTeams = [...activeTeams]
-                .sort((a, b) => (b.punti - a.punti) || (b.vittorie - a.vittorie) || ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti)))
-                .slice(0, 16);
-            
-            if (ottaviTeams.length >= 2) {
-                await createBalancedMatches(ottaviTeams, 66);
-                generatedAny = true;
-            } else {
-                showNotify("⚠️ Squadre insufficienti", "Mancano squadre per gli ottavi.", "warning");
-                return;
-            }
+
+            await createBalancedMatches(winners, nextStageCode);
+            generatedAny = true;
         } else {
-            // Fallback: nessuna azione possibile
             showNotify("ℹ️ Nulla da generare", "Controlla lo stato del torneo e riprova.", "info");
             return;
         }
@@ -583,56 +574,203 @@ async function generateRandomMatches() {
     }
 }
 
+function getCompletedMatchesByStage(stageCode) {
+    return allPartite.filter(p => p.giocata && p.girone === stageCode);
+}
+
+function getMatchWinners(matches) {
+    return matches.map(p => {
+        if (p.bicchieriSquadra1 === p.bicchieriSquadra2) {
+            console.warn(`Match pari, scelgo squadra1 per default: ${p.id}`);
+            return p.squadra1;
+        }
+        return p.bicchieriSquadra1 > p.bicchieriSquadra2 ? p.squadra1 : p.squadra2;
+    }).filter(Boolean);
+}
+
+function getEliminationWinners(stageCode) {
+    return getMatchWinners(getCompletedMatchesByStage(stageCode));
+}
+
+function getBracketSize(teamCount) {
+    if (teamCount < 2) return 0;
+    let size = 1;
+    while (size < teamCount) {
+        size *= 2;
+    }
+    return Math.max(2, size);
+}
+
+function getStageCodeForSize(bracketSize) {
+    switch (bracketSize) {
+        case 2: return 99;
+        case 4: return 88;
+        case 8: return 77;
+        case 16: return 66;
+        default: return 66;
+    }
+}
+
+function getTopRankedTeams(squadre, count) {
+    return [...squadre]
+        .sort((a, b) =>
+            (b.punti - a.punti) ||
+            (b.vittorie - a.vittorie) ||
+            ((b.bicchieriFatti - b.bicchieriSubiti) - (a.bicchieriFatti - a.bicchieriSubiti))
+        )
+        .slice(0, count);
+}
+
 async function createBalancedMatches(squadre, gironeNum) {
+    if (!squadre || squadre.length < 2) {
+        return false;
+    }
+
+    const teamsToPair = [...squadre].sort(() => 0.5 - Math.random());
+    if (teamsToPair.length % 2 !== 0) {
+        showNotify("⚠️ Numero squadre dispari", "Non posso creare match diretti con numero dispari di squadre per questa fase.", "warning");
+        return false;
+    }
+
     let created = false;
-    const groups = {};
-    squadre.forEach(s => {
-        const key = `${s.vittorie}-${s.sconfitte}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(s);
-    });
+    for (let i = 0; i < teamsToPair.length; i += 2) {
+        const s1 = teamsToPair[i];
+        const s2 = teamsToPair[i + 1];
 
-    for (const key in groups) {
-        let shuffled = groups[key].sort(() => 0.5 - Math.random());
-        for (let i = 0; i < shuffled.length - 1; i += 2) {
-            const s1 = shuffled[i];
-            const s2 = shuffled[i+1];
+        const alreadyPlayed = allPartite.some(p =>
+            (p.squadra1.id == s1.id && p.squadra2.id == s2.id) ||
+            (p.squadra1.id == s2.id && p.squadra2.id == s1.id)
+        );
 
-            const alreadyPlayed = allPartite.some(p => 
-                (p.squadra1.id == s1.id && p.squadra2.id == s2.id) ||
-                (p.squadra1.id == s2.id && p.squadra2.id == s1.id)
-            );
+        if (alreadyPlayed && gironeNum < 80) {
+            console.log(`Salto match già giocato: ${s1.nome} vs ${s2.nome}`);
+            continue;
+        }
 
-            if (alreadyPlayed && gironeNum < 80) {
-                console.log(`Salto match già giocato: ${s1.nome} vs ${s2.nome}`);
-                continue;
-            }
+        const partita = {
+            squadra1: { id: s1.id },
+            squadra2: { id: s2.id },
+            bicchieriSquadra1: 0,
+            bicchieriSquadra2: 0,
+            girone: gironeNum,
+            turno: 1,
+            giocata: false
+        };
+        const response = await fetch(`${API_URL}/partite/nuova`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': window.authHeader || ''
+            },
+            body: JSON.stringify(partita)
+        });
+        if (response.status === 401) {
+            showNotify("🔒 Accesso Negato", "Devi inserire la password admin per generare i match!", "danger");
+            return false;
+        }
+        created = true;
+    }
 
-            const partita = {
-                squadra1: { id: s1.id },
-                squadra2: { id: s2.id },
-                bicchieriSquadra1: 0,
-                bicchieriSquadra2: 0,
-                girone: gironeNum,
-                turno: 1,
-                giocata: false
-            };
-            const response = await fetch(`${API_URL}/partite/nuova`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': window.authHeader || ''
-                },
-                body: JSON.stringify(partita)
-            });
-            if (response.status === 401) {
-                showNotify("🔒 Accesso Negato", "Devi inserire la password admin per generare i match!", "danger");
-                return false;
-            }
-            created = true;
+    return created;
+}
+
+function computeGroupCountForTeams(teamCount) {
+    if (teamCount <= 4) return 2;
+    return Math.min(6, Math.max(2, Math.round(teamCount / 4)));
+}
+
+async function distribuisciSquadre() {
+    if (!teams || teams.length === 0) {
+        showNotify("⚠️ Nessuna squadra", "Aggiungi almeno una squadra prima di distribuire.", "warning");
+        return;
+    }
+
+    const teamCount = teams.length;
+    const groupCount = activeGroups.length > 1 ? activeGroups.length : computeGroupCountForTeams(teamCount);
+    const baseSize = Math.floor(teamCount / groupCount);
+    const remainder = teamCount % groupCount;
+    const groupSizes = Array.from({ length: groupCount }, (_, i) => baseSize + (i < remainder ? 1 : 0));
+
+    if (groupSizes.some(size => size === 0)) {
+        showNotify("⚠️ Distribuzione non valida", "Non ci sono abbastanza squadre per i gironi selezionati.", "warning");
+        return;
+    }
+
+    const shuffledTeams = [...teams].sort(() => 0.5 - Math.random());
+    const updatedTeams = [];
+    let currentIndex = 0;
+
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+        const targetGroup = groupIndex + 1;
+        for (let j = 0; j < groupSizes[groupIndex]; j++) {
+            const team = shuffledTeams[currentIndex++];
+            if (!team) break;
+            updatedTeams.push({ id: team.id, nome: team.nome, girone: targetGroup });
         }
     }
-    return created;
+
+    activeGroups = Array.from({ length: groupCount }, (_, i) => i + 1);
+    lastSelectedGroup = activeGroups.includes(lastSelectedGroup) ? lastSelectedGroup : 1;
+    localStorage.setItem('lastSelectedGroup', lastSelectedGroup);
+
+    showNotify('📍 Distribuzione in corso', `Sto distribuendo ${teamCount} squadre in ${groupCount} gironi...`, 'info');
+
+    try {
+        const updatePromises = updatedTeams.map(team => fetch(`${API_URL}/${team.id}/girone`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': window.authHeader || ''
+            },
+            body: JSON.stringify({ girone: team.girone })
+        }));
+
+        const responses = await Promise.all(updatePromises);
+        const failed = responses.find(res => !res.ok);
+        if (failed) {
+            const text = await failed.text();
+            throw new Error(text || 'Errore durante l aggiornamento dei gironi.');
+        }
+
+        showNotify('📍 Squadre distribuite', `Distribuite ${teamCount} squadre in ${groupCount} gironi.`, 'success');
+        await loadTeams();
+    } catch (error) {
+        console.error(error);
+        showNotify('❌ Errore', error.message || 'Impossibile distribuire le squadre.', 'danger');
+    }
+}
+
+function validateTournamentGroups() {
+    if (!teams || teams.length === 0) {
+        return 'Nessuna squadra disponibile per avviare il torneo.';
+    }
+
+    const missingGroup = teams.filter(t => !Number.isInteger(t.girone) || t.girone < 1);
+    if (missingGroup.length > 0) {
+        return 'Assegna un girone a tutte le squadre prima di avviare il torneo.';
+    }
+
+    const groupCounts = {};
+    activeGroups.forEach(g => groupCounts[g] = 0);
+    teams.forEach(t => {
+        if (activeGroups.includes(t.girone)) {
+            groupCounts[t.girone] = (groupCounts[t.girone] || 0) + 1;
+        }
+    });
+
+    const emptyGroups = Object.entries(groupCounts).filter(([, count]) => count === 0).map(([g]) => g);
+    if (emptyGroups.length > 0) {
+        return `Il girone ${emptyGroups.join(', ')} è vuoto. Rimuovilo o assegna una squadra.`;
+    }
+
+    const sizes = Object.values(groupCounts);
+    const maxSize = Math.max(...sizes);
+    const minSize = Math.min(...sizes);
+    if (maxSize - minSize > 1) {
+        return 'La distribuzione dei gironi non è bilanciata. Usa Distribuisci Squadre per riequilibrare.';
+    }
+
+    return null;
 }
 
 function buildRoundRobinTurns(squadre) {
