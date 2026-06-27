@@ -642,7 +642,7 @@ async function createBalancedMatches(squadre, gironeNum) {
             (p.squadra1.id == s2.id && p.squadra2.id == s1.id)
         );
 
-        if (alreadyPlayed && gironeNum < 80) {
+        if (alreadyPlayed && gironeNum < 66) {
             console.log(`Salto match già giocato: ${s1.nome} vs ${s2.nome}`);
             continue;
         }
@@ -1099,8 +1099,8 @@ function renderPartite(partite) {
         return 'bg-secondary text-white';
     };
 
-    const groupPhaseMatches = partite.filter(p => p.girone > 0 && p.girone < 80);
-    const eliminationMatches = partite.filter(p => p.girone >= 80 && !p.giocata);
+    const groupPhaseMatches = partite.filter(p => p.girone > 0 && p.girone < 66);
+    const eliminationMatches = partite.filter(p => p.girone >= 66 && !p.giocata);
     const groupIds = [...new Set(groupPhaseMatches.map(p => p.girone))].sort((a, b) => a - b);
 
     const activeGroupCards = [];
